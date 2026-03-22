@@ -12,6 +12,20 @@ const GameService = require('./services/game.service');
 let games = [];
 let queue = [];
 
+const TURN_DURATION = 30;
+
+const GAME_INIT = {
+    gameState: {
+        currentTurn: 'player:1',
+        timer: TURN_DURATION,
+        player1Score: 0,
+        player2Score: 0,
+        grid: [],
+        choices: {},
+        deck: {}
+
+    }
+}
 // ---------------------------------
 // -------- GAME METHODS -----------
 // ---------------------------------
@@ -47,11 +61,29 @@ const createGame = (player1Socket, player2Socket) => {
 
 
   // On execute une fonction toutes les secondes (1000 ms)
-  const gameInterval = setInterval(() => {
+// websocket-game-server/index.js
 
-    games[gameIndex].gameState.timer--;
+const gameInterval = setInterval(() => {
 
-  }, 1000);
+  games[gameIndex].gameState.timer--;
+
+  // Si le timer tombe à zéro
+  if (games[gameIndex].gameState.timer === 0) {
+
+    // On change de tour en inversant le clé dans 'currentTurn'
+    games[gameIndex].gameState.currentTurn = games[gameIndex].gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
+
+    // Méthode du service qui renvoie la constante 'TURN_DURATION'
+    games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
+  }
+
+  // On notifie finalement les clients que les données sont mises à jour.
+  games[gameIndex].player1Socket.emit('game.timer', GameService.send.forPlayer.gameTimer('player:1', games[gameIndex].gameState));
+  games[gameIndex].player2Socket.emit('game.timer', GameService.send.forPlayer.gameTimer('player:2', games[gameIndex].gameState));
+
+}, 1000);
+
+
 
   // On prévoit de couper l'horloge
   // pour le moment uniquement quand le socket se déconnecte
