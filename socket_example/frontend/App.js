@@ -1,7 +1,6 @@
 // ./App.js
 
 import React from 'react';
-import { LogBox } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from './screens/home.screen';
@@ -10,7 +9,6 @@ import VsBotGameScreen from './screens/vs-bot-game.screen';
 import { SocketContext, socket } from './contexts/socket.context';
 
 const Stack = createStackNavigator();
-LogBox.ignoreAllLogs(true);
 
 function App() {
   return (
