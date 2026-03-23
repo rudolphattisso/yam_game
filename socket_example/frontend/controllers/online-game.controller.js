@@ -58,15 +58,15 @@ export default function OnlineGameController() {
                     <Text style={styles.paragraph}>
                         Game found !
                     </Text>
-                    <Text style={styles.paragraph}>
-                        Player - {socket.id} -
-                    </Text>
-                    <Text style={styles.paragraph}>
-                        - vs -
-                    </Text>
-                    <Text style={styles.paragraph}>
-                        Player - {idOpponent} -
-                    </Text>
+                        {/* <Text style={styles.paragraph}>
+                            Player - {socket.id} -
+                        </Text> */}
+                        <Text style={styles.paragraph}>
+                            - vs -
+                        </Text>
+                        <Text style={styles.paragraph}>
+                            Player2 - {idOpponent} -
+                        </Text>
                     <Board>
                         
                     </Board>

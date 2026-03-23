@@ -6,6 +6,8 @@ import OpponentTimer from './opponent-timer.component';
 import PlayerTimer from './player-timer.component';
 import OpponentDeck from './decks/opponent-deck.component';
 import PlayerDeck from './decks/player-deck.component';
+import Grid from './grid/grid.component';
+import Choices from './choices/choices.component';
 
 const OpponentInfos = () => {
   return (
@@ -24,23 +26,7 @@ const OpponentScore = () => {
   );
 };
 
-const Grid = () => {
 
-  return (
-    <View style={styles.gridContainer}>
-      <Text>Grid</Text>
-    </View>
-  );
-};
-
-const Choices = () => {
-
-  return (
-    <View style={styles.choicesContainer}>
-      <Text>Choices</Text>
-    </View>
-  );
-};
 
 const PlayerInfos = () => {
   return (
@@ -136,18 +122,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "black"
   },
-  gridContainer: {
-    flex: 7,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRightWidth: 1,
-    borderColor: 'black',
-  },
-  choicesContainer: {
-    flex: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+
   deckPlayerContainer: {
     flex: 1,
     justifyContent: 'center',

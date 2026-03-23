@@ -1,4 +1,7 @@
 // app/components/board/choices/choices.component.js
+import React, { useContext, useState, useEffect } from 'react';
+import { View, Text, StyleSheet , TouchableOpacity} from 'react-native';
+import { SocketContext } from '../../../contexts/socket.context';
 
 const Choices = () => {
 

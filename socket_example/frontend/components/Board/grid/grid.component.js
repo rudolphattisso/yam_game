@@ -11,6 +11,7 @@ const Grid = () => {
     const [displayGrid, setDisplayGrid] = useState(true);
     const [canSelectCells, setCanSelectCells] = useState([]);
     const [grid, setGrid] = useState([]);
+    const safeGrid = Array.isArray(grid) ? grid : [];
 
     const handleSelectCell = (cellId, rowIndex, cellIndex) => {
         if (canSelectCells) {
@@ -21,16 +22,16 @@ const Grid = () => {
     useEffect(() => {
         socket.on("game.grid.view-state", (data) => {
             setDisplayGrid(data['displayGrid']);
-            setCanSelectCells(data['canSelectCells'])
-            setGrid(data['grid']);
+            setCanSelectCells(Boolean(data['canSelectCells']));
+            setGrid(Array.isArray(data['grid']) ? data['grid'] : []);
         });
     }, []);
 
     return (
         <View style={styles.gridContainer}>
             {displayGrid &&
-                grid.map((row, rowIndex) => (
-                    <View key={rowIndex} style={styles.row}>
+                safeGrid.map((row, rowIndex) => (
+                        <View key={row.map(cell => cell.id).join('-') + '-' + rowIndex} style={styles.row}>
                         {row.map((cell, cellIndex) => (
                             <TouchableOpacity
                                 key={cell.id}
@@ -38,7 +39,7 @@ const Grid = () => {
                                     styles.cell,
                                     cell.owner === "player:1" && styles.playerOwnedCell,
                                     cell.owner === "player:2" && styles.opponentOwnedCell,
-                                    (cell.canBeChecked && !(cell.owner === "player:1") && !(cell.owner === "player:2")) && styles.canBeCheckedCell,
+                                        (cell.canBeChecked && cell.owner !== "player:1" && cell.owner !== "player:2") && styles.canBeCheckedCell,
                                     rowIndex !== 0 && styles.topBorder,
                                     cellIndex !== 0 && styles.leftBorder,
                                 ]}

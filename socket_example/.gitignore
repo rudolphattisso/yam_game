@@ -38,4 +38,6 @@ coverage/
 *.tmp
 *.temp
 
+#personal files
 doc/
+ARCHITECTURE.md

@@ -2,7 +2,7 @@
 
 // Durée d'un tour en secondes
 const TURN_DURATION = 30;
-const END_TURN_DURATION = 5;
+const END_TURN_DURATION = 10;
 
 const DECK_INIT = {
     dices: [
@@ -89,6 +89,10 @@ const GRID_INIT = [
     ]
 ];
 
+const cloneGrid = (grid) => {
+    return grid.map(row => row.map(cell => ({ ...cell })));
+};
+
 // methodes relatives à la gestion du jeu, des decks et des dés
 const GameService = {
 
@@ -98,7 +102,7 @@ const GameService = {
             game['gameState']['timer'] = TURN_DURATION;
             game['gameState']['deck'] = { ...DECK_INIT };
             game['gameState']['choices'] = { ...CHOICES_INIT };
-            game['gameState']['grid'] = [...GRID_INIT];
+            game['gameState']['grid'] = cloneGrid(GRID_INIT);
             return game;
         },
 
@@ -111,7 +115,7 @@ const GameService = {
         },
 
         grid: () => {
-            return { ...GRID_INIT };
+            return cloneGrid(GRID_INIT);
         }
     },
 
