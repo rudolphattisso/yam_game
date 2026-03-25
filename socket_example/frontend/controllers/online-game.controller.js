@@ -65,7 +65,7 @@ export default function OnlineGameController() {
                             - vs -
                         </Text>
                         <Text style={styles.paragraph}>
-                            Player2 - {idOpponent} -
+                            Player - {idOpponent} -
                         </Text>
                     <Board>
                         

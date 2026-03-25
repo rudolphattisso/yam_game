@@ -44,6 +44,35 @@ const updateClientsViewGrid = (game) => {
   }, 200)
 }
 
+const passTurn = (game) => {
+  game.gameState.currentTurn = game.gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
+  game.gameState.timer = GameService.timer.getTurnDuration();
+  game.gameState.deck = GameService.init.deck();
+  game.gameState.choices = GameService.init.choices();
+  game.gameState.grid = GameService.grid.resetcanBeCheckedCells(game.gameState.grid);
+
+  updateClientsViewTimers(game);
+  updateClientsViewDecks(game);
+  updateClientsViewChoices(game);
+  updateClientsViewGrid(game);
+};
+
+const tryAutoPassTurnAtTimerZero = (game) => {
+  if (game.gameState.timer !== 0) {
+    return false;
+  }
+
+  const hasPlayableCombination = GameService.grid.isAnyCombinationAvailableOnGridForPlayer(game.gameState);
+
+  // Tant qu'une combinaison est jouable, le joueur doit selectionner puis poser en grille.
+  if (hasPlayableCombination) {
+    return false;
+  }
+
+  passTurn(game);
+  return true;
+};
+
 // ---------------------------------
 // -------- GAME METHODS -----------
 // ---------------------------------
@@ -86,27 +115,20 @@ const createGame = (player1Socket, player2Socket) => {
   // On execute une fonction toutes les secondes (1000 ms)
   const gameInterval = setInterval(() => {
 
-    games[gameIndex].gameState.timer--;
-    updateClientsViewTimers(games[gameIndex]);
+    const game = games[gameIndex];
+
+    if (!game) {
+      return;
+    }
+
+    if (game.gameState.timer > 0) {
+      game.gameState.timer--;
+      updateClientsViewTimers(game);
+    }
 
     // Si le timer tombe à zéro
-    if (games[gameIndex].gameState.timer === 0) {
-
-      // On change de tour en inversant le clé dans 'currentTurn'
-      games[gameIndex].gameState.currentTurn = games[gameIndex].gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
-
-      // Méthode du service qui renvoie la constante 'TURN_DURATION'
-      games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
-
-      games[gameIndex].gameState.deck = GameService.init.deck();
-      games[gameIndex].gameState.choices = GameService.init.choices();
-      games[gameIndex].gameState.grid = GameService.init.grid();
-
-
-      updateClientsViewTimers(games[gameIndex]);
-      updateClientsViewDecks(games[gameIndex]);
-      updateClientsViewChoices(games[gameIndex]);
-      updateClientsViewGrid(games[gameIndex]);
+    if (game.gameState.timer === 0) {
+      tryAutoPassTurnAtTimerZero(game);
     }
 
   }, 1000);
@@ -175,10 +197,16 @@ io.on('connection', socket => {
       const combinations = GameService.choices.findCombinations(dices, isDefi, isSec);
       games[gameIndex].gameState.choices.availableChoices = combinations;
 
-      games[gameIndex].gameState.timer = GameService.timer.getEndTurnDuration();
-      updateClientsViewTimers(games[gameIndex]);
-      updateClientsViewDecks(games[gameIndex]);
-      updateClientsViewChoices(games[gameIndex]);
+      // Fin de lancers: le joueur doit choisir/poser une combinaison avant de passer le tour.
+      games[gameIndex].gameState.timer = 0;
+
+      const hasAutoPassed = tryAutoPassTurnAtTimerZero(games[gameIndex]);
+
+      if (!hasAutoPassed) {
+        updateClientsViewTimers(games[gameIndex]);
+        updateClientsViewDecks(games[gameIndex]);
+        updateClientsViewChoices(games[gameIndex]);
+      }
     }
 
   });
