@@ -1,11 +1,18 @@
 // app/screens/home.screen.js
 
-import { StyleSheet, View, Button } from "react-native";
+import PropTypes from "prop-types";
+import { StyleSheet, View, Button, Text } from "react-native";
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, route }) {
+
+  const userMode = route?.params?.userMode;
+  const displayName = route?.params?.displayName;
+  const modeLabel = userMode === 'connected' ? 'Connecte' : 'Invite';
 
   return (
     <View style={styles.container}>
+      <Text style={styles.modeText}>Mode utilisateur: {modeLabel}</Text>
+      {displayName && <Text style={styles.modeText}>Bienvenue, {displayName}</Text>}
       <View>
         <Button
           title="Jouer en ligne"
@@ -22,11 +29,27 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
+HomeScreen.propTypes = {
+  navigation: PropTypes.shape({
+    navigate: PropTypes.func.isRequired,
+  }).isRequired,
+  route: PropTypes.shape({
+    params: PropTypes.shape({
+      userMode: PropTypes.string,
+      displayName: PropTypes.string,
+    }),
+  }),
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
-  }
+  },
+  modeText: {
+    fontSize: 16,
+    marginBottom: 16,
+  },
 });
