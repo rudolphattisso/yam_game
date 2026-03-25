@@ -1,12 +1,13 @@
 // app/controller/online-game.controller.js
 
 import React, { useEffect, useState, useContext } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import PropTypes from 'prop-types';
+import { StyleSheet, Text, View } from "react-native";
 import { SocketContext } from '../contexts/socket.context';
 import Board from '../components/board/board.component';
 
 
-export default function OnlineGameController() {
+export default function OnlineGameController({ onOpponentLeft }) {
 
     const socket = useContext(SocketContext);
 
@@ -31,17 +32,13 @@ export default function OnlineGameController() {
             setStatusMessage('Game found !');
         };
 
-        const onOpponentLeft = () => {
-            setInQueue(false);
-            setInGame(false);
-            setIdOpponent(null);
-            setStatusMessage('Opponent disconnected. Join queue again.');
-            Alert.alert('Partie interrompue', 'Votre adversaire s\'est deconnecte.');
+        const handleOpponentLeft = () => {
+            if (onOpponentLeft) onOpponentLeft();
         };
 
         socket.on('queue.added', onQueueAdded);
         socket.on('game.start', onGameStart);
-        socket.on('game.opponent.left', onOpponentLeft);
+        socket.on('game.opponent.left', handleOpponentLeft);
 
         console.log('[emit][queue.join]:', socket.id);
         socket.emit("queue.join");
@@ -51,10 +48,10 @@ export default function OnlineGameController() {
         return () => {
             socket.off('queue.added', onQueueAdded);
             socket.off('game.start', onGameStart);
-            socket.off('game.opponent.left', onOpponentLeft);
+            socket.off('game.opponent.left', handleOpponentLeft);
         };
 
-    }, [socket]);
+    }, [socket, onOpponentLeft]);
 
     return (
         <View style={styles.container}>
@@ -92,6 +89,14 @@ export default function OnlineGameController() {
         </View>
     );
 }
+
+OnlineGameController.propTypes = {
+    onOpponentLeft: PropTypes.func,
+};
+
+OnlineGameController.defaultProps = {
+    onOpponentLeft: null,
+};
 
 const styles = StyleSheet.create({
     container: {

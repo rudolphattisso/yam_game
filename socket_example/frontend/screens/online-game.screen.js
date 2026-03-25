@@ -15,6 +15,19 @@ export default function OnlineGameScreen({ navigation }) {
         navigation.navigate('HomeScreen');
     };
 
+    const handleOpponentLeft = () => {
+        if (Platform.OS === 'web') {
+            globalThis.alert('Votre adversaire s\'est déconnecté ou a perdu la session.');
+            navigation.navigate('HomeScreen');
+        } else {
+            Alert.alert(
+                'Partie interrompue',
+                'Votre adversaire s\'est déconnecté ou a perdu la session.',
+                [{ text: 'OK', onPress: () => navigation.navigate('HomeScreen') }]
+            );
+        }
+    };
+
     const confirmLeaveGame = () => {
         if (Platform.OS === 'web' && typeof globalThis.confirm === 'function') {
             const shouldLeave = globalThis.confirm('Veux-tu vraiment quitter la partie en cours ?');
@@ -60,7 +73,7 @@ export default function OnlineGameScreen({ navigation }) {
                         title="Revenir au menu"
                         onPress={confirmLeaveGame}
                     />
-                    <OnlineGameController />
+                    <OnlineGameController onOpponentLeft={handleOpponentLeft} />
                 </>
             )}
         </View>
