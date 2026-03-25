@@ -1,7 +1,7 @@
 // index.js
 
 const app = require('express')();
-const http = require('http').Server(app);
+const http = require('node:http').Server(app);
 const io = require('socket.io')(http);
 
 const uniqid = require('uniqid');
@@ -44,6 +44,13 @@ const updateClientsViewGrid = (game) => {
   }, 200)
 }
 
+const updateClientsViewScores = (game) => {
+  setTimeout(() => {
+    game.player1Socket.emit('game.score.view-state', GameService.send.forPlayer.scoreViewState('player:1', game.gameState));
+    game.player2Socket.emit('game.score.view-state', GameService.send.forPlayer.scoreViewState('player:2', game.gameState));
+  }, 200);
+};
+
 const getPlayerKeyBySocketId = (game, socketId) => {
   if (game.player1Socket.id === socketId) {
     return 'player:1';
@@ -69,6 +76,7 @@ const sendCurrentGameStateToPlayer = (game, socket) => {
   socket.emit('game.deck.view-state', GameService.send.forPlayer.deckViewState(playerKey, game.gameState));
   socket.emit('game.choices.view-state', GameService.send.forPlayer.choicesViewState(playerKey, game.gameState));
   socket.emit('game.grid.view-state', GameService.send.forPlayer.gridViewState(playerKey, game.gameState));
+  socket.emit('game.score.view-state', GameService.send.forPlayer.scoreViewState(playerKey, game.gameState));
 };
 
 const removeSocketFromQueue = (socketId) => {
@@ -129,6 +137,34 @@ const endGameBySocketId = (socketId) => {
   games.splice(gameIndex, 1);
 };
 
+const endGameWithResult = (gameIndex, winnerKey, reason) => {
+  const game = games[gameIndex];
+
+  if (!game) {
+    return;
+  }
+
+  if (game.intervalId) {
+    clearInterval(game.intervalId);
+  }
+
+  game.player1Socket.emit('game.end', {
+    winner: winnerKey,
+    reason,
+    playerScore: game.gameState.player1Score,
+    opponentScore: game.gameState.player2Score,
+  });
+
+  game.player2Socket.emit('game.end', {
+    winner: winnerKey,
+    reason,
+    playerScore: game.gameState.player2Score,
+    opponentScore: game.gameState.player1Score,
+  });
+
+  games.splice(gameIndex, 1);
+};
+
 // ---------------------------------
 // -------- GAME METHODS -----------
 // ---------------------------------
@@ -179,6 +215,7 @@ const createGame = (player1Socket, player2Socket) => {
   updateClientsViewTimers(games[gameIndex]);
   updateClientsViewDecks(games[gameIndex]);
   updateClientsViewGrid(games[gameIndex]);
+  updateClientsViewScores(games[gameIndex]);
 
   // On execute une fonction toutes les secondes (1000 ms)
   const gameInterval = setInterval(() => {
@@ -343,6 +380,15 @@ io.on('connection', socket => {
       return;
     }
 
+    const canPlaceChoiceOnGrid = GameService.grid.hasAvailableCellForChoice(
+      games[gameIndex].gameState.grid,
+      data.choiceId,
+    );
+
+    if (!canPlaceChoiceOnGrid) {
+      return;
+    }
+
     games[gameIndex].gameState.choices.idSelectedChoice = data.choiceId;
 
     // Mise à jour de la grille
@@ -385,8 +431,41 @@ io.on('connection', socket => {
     games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
     games[gameIndex].gameState.grid = GameService.grid.selectCell(data.cellId, data.rowIndex, data.cellIndex, games[gameIndex].gameState.currentTurn, games[gameIndex].gameState.grid);
 
-    // TODO: Here calcul score
-    // TODO: Then check if a player win
+    games[gameIndex].gameState.player1Score = GameService.score.computeScoreForPlayer(games[gameIndex].gameState.grid, 'player:1');
+    games[gameIndex].gameState.player2Score = GameService.score.computeScoreForPlayer(games[gameIndex].gameState.grid, 'player:2');
+
+    updateClientsViewGrid(games[gameIndex]);
+    updateClientsViewScores(games[gameIndex]);
+
+    // Victoire immédiate: 5 pions alignés.
+    if (GameService.score.hasFiveAligned(games[gameIndex].gameState.grid, 'player:1')) {
+      endGameWithResult(gameIndex, 'player:1', 'five-aligned');
+      return;
+    }
+
+    if (GameService.score.hasFiveAligned(games[gameIndex].gameState.grid, 'player:2')) {
+      endGameWithResult(gameIndex, 'player:2', 'five-aligned');
+      return;
+    }
+
+    // Fin de pions: le meilleur score gagne.
+    const player1RemainingPawns = GameService.score.getRemainingPawns(games[gameIndex].gameState.grid, 'player:1');
+    const player2RemainingPawns = GameService.score.getRemainingPawns(games[gameIndex].gameState.grid, 'player:2');
+
+    if (player1RemainingPawns === 0 || player2RemainingPawns === 0) {
+      const player1Score = games[gameIndex].gameState.player1Score;
+      const player2Score = games[gameIndex].gameState.player2Score;
+
+      let winner = 'draw';
+      if (player1Score > player2Score) {
+        winner = 'player:1';
+      } else if (player2Score > player1Score) {
+        winner = 'player:2';
+      }
+
+      endGameWithResult(gameIndex, winner, 'no-pawns-left');
+      return;
+    }
 
     // end turn
     passTurn(games[gameIndex]);

@@ -29,9 +29,9 @@ const Choices = () => {
 
     }, [socket]);
 
-    const handleSelectChoice = (choiceId) => {
+    const handleSelectChoice = (choiceId, isSelectable) => {
 
-        if (canMakeChoice) {
+        if (canMakeChoice && isSelectable) {
             setIdSelectedChoice(choiceId);
             socket.emit("game.choices.selected", { choiceId });
         }
@@ -41,20 +41,25 @@ const Choices = () => {
     return (
         <View style={styles.choicesContainer}>
             {displayChoices &&
-                availableChoices.map((choice) => (
+                availableChoices.map((choice) => {
+                    const isChoiceDisabled = !canMakeChoice || !choice.isSelectable;
+
+                    return (
                     <TouchableOpacity
                         key={choice.id}
                         style={[
                             styles.choiceButton,
                             idSelectedChoice === choice.id && styles.selectedChoice,
-                            !canMakeChoice && styles.disabledChoice
+                            isChoiceDisabled && styles.disabledChoice,
+                            !choice.isSelectable && styles.unavailableChoice,
                         ]}
-                        onPress={() => handleSelectChoice(choice.id)}
-                        disabled={!canMakeChoice}
+                        onPress={() => handleSelectChoice(choice.id, choice.isSelectable)}
+                        disabled={isChoiceDisabled}
                     >
                         <Text style={styles.choiceText}>{choice.value}</Text>
                     </TouchableOpacity>
-                ))}
+                    );
+                })}
         </View>
     );
 };
@@ -88,6 +93,9 @@ const styles = StyleSheet.create({
     },
     disabledChoice: {
         opacity: 0.5,
+    },
+    unavailableChoice: {
+        backgroundColor: '#d9d9d9',
     },
 });
 

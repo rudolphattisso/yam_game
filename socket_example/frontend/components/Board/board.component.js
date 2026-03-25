@@ -1,6 +1,6 @@
 // app/components/board/board.component.js
 
-import React from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { View, Text, StyleSheet } from 'react-native';
 import OpponentTimer from './opponent-timer.component';
 import PlayerTimer from './player-timer.component';
@@ -8,6 +8,7 @@ import OpponentDeck from './decks/opponent-deck.component';
 import PlayerDeck from './decks/player-deck.component';
 import Grid from './grid/grid.component';
 import Choices from './choices/choices.component';
+import { SocketContext } from '../../contexts/socket.context';
 
 const OpponentInfos = () => {
   return (
@@ -18,10 +19,11 @@ const OpponentInfos = () => {
 };
 
 
-const OpponentScore = () => {
+const OpponentScore = ({ score, remainingPawns }) => {
   return (
     <View style={styles.opponentScoreContainer}>
-      <Text>Score: </Text>
+      <Text>Score: {score}</Text>
+      <Text>Pions: {remainingPawns}</Text>
     </View>
   );
 };
@@ -37,11 +39,12 @@ const PlayerInfos = () => {
 };
 
 
-const PlayerScore = () => {
+const PlayerScore = ({ score, remainingPawns }) => {
 
   return (
     <View style={styles.playerScoreContainer}>
-      <Text>PlayerScore</Text>
+      <Text>Score: {score}</Text>
+      <Text>Pions: {remainingPawns}</Text>
     </View>
   );
 };
@@ -49,13 +52,38 @@ const PlayerScore = () => {
 
 
 const Board = ({ gameViewState}) => {
+  const socket = useContext(SocketContext);
+  const [scores, setScores] = useState({
+    playerScore: 0,
+    opponentScore: 0,
+    playerRemainingPawns: 12,
+    opponentRemainingPawns: 12,
+  });
+
+  useEffect(() => {
+    const onScoreViewState = (data) => {
+      setScores({
+        playerScore: data?.playerScore ?? 0,
+        opponentScore: data?.opponentScore ?? 0,
+        playerRemainingPawns: data?.playerRemainingPawns ?? 12,
+        opponentRemainingPawns: data?.opponentRemainingPawns ?? 12,
+      });
+    };
+
+    socket.on('game.score.view-state', onScoreViewState);
+
+    return () => {
+      socket.off('game.score.view-state', onScoreViewState);
+    };
+  }, [socket]);
+
   return (
     <View style={styles.container}>
       <View style={[styles.row, { height: '5%' }]}>
         <OpponentInfos />
         <View style={styles.opponentTimerScoreContainer}>
           <OpponentTimer />
-          <OpponentScore />
+          <OpponentScore score={scores.opponentScore} remainingPawns={scores.opponentRemainingPawns} />
         </View>
       </View>
       <View style={[styles.row, { height: '25%' }]}>
@@ -72,7 +100,7 @@ const Board = ({ gameViewState}) => {
         <PlayerInfos />
         <View style={styles.playerTimerScoreContainer}>
           <PlayerTimer />
-          <PlayerScore />
+          <PlayerScore score={scores.playerScore} remainingPawns={scores.playerRemainingPawns} />
         </View>
       </View>
     </View>

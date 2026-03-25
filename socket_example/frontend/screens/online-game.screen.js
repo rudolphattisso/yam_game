@@ -28,6 +28,28 @@ export default function OnlineGameScreen({ navigation }) {
         }
     };
 
+    const handleGameEnd = (data) => {
+        let winnerLabel = 'Partie terminée';
+        if (data?.winner === 'draw') {
+            winnerLabel = 'Match nul';
+        } else if (data?.winner === 'player:1' || data?.winner === 'player:2') {
+            const isCurrentPlayerWinner = data.playerScore > data.opponentScore;
+            winnerLabel = isCurrentPlayerWinner ? 'Gagné' : 'Perdu';
+        }
+
+        const message = `${winnerLabel}\nTon score: ${data?.playerScore ?? 0}\nScore adverse: ${data?.opponentScore ?? 0}`;
+
+        if (Platform.OS === 'web') {
+            globalThis.alert(message);
+            navigation.navigate('HomeScreen');
+            return;
+        }
+
+        Alert.alert('Fin de partie', message, [
+            { text: 'OK', onPress: () => navigation.navigate('HomeScreen') },
+        ]);
+    };
+
     const confirmLeaveGame = () => {
         if (Platform.OS === 'web' && typeof globalThis.confirm === 'function') {
             const shouldLeave = globalThis.confirm('Veux-tu vraiment quitter la partie en cours ?');
@@ -73,7 +95,7 @@ export default function OnlineGameScreen({ navigation }) {
                         title="Revenir au menu"
                         onPress={confirmLeaveGame}
                     />
-                    <OnlineGameController onOpponentLeft={handleOpponentLeft} />
+                    <OnlineGameController onOpponentLeft={handleOpponentLeft} onGameEnd={handleGameEnd} />
                 </>
             )}
         </View>

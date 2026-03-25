@@ -7,7 +7,7 @@ import { SocketContext } from '../contexts/socket.context';
 import Board from '../components/board/board.component';
 
 
-export default function OnlineGameController({ onOpponentLeft }) {
+export default function OnlineGameController({ onOpponentLeft, onGameEnd }) {
 
     const socket = useContext(SocketContext);
 
@@ -36,9 +36,18 @@ export default function OnlineGameController({ onOpponentLeft }) {
             if (onOpponentLeft) onOpponentLeft();
         };
 
+        const handleGameEnd = (data) => {
+            setInQueue(false);
+            setInGame(false);
+            setIdOpponent(null);
+            setStatusMessage('Game ended.');
+            if (onGameEnd) onGameEnd(data);
+        };
+
         socket.on('queue.added', onQueueAdded);
         socket.on('game.start', onGameStart);
         socket.on('game.opponent.left', handleOpponentLeft);
+        socket.on('game.end', handleGameEnd);
 
         console.log('[emit][queue.join]:', socket.id);
         socket.emit("queue.join");
@@ -49,9 +58,10 @@ export default function OnlineGameController({ onOpponentLeft }) {
             socket.off('queue.added', onQueueAdded);
             socket.off('game.start', onGameStart);
             socket.off('game.opponent.left', handleOpponentLeft);
+            socket.off('game.end', handleGameEnd);
         };
 
-    }, [socket, onOpponentLeft]);
+    }, [socket, onOpponentLeft, onGameEnd]);
 
     return (
         <View style={styles.container}>
@@ -92,10 +102,12 @@ export default function OnlineGameController({ onOpponentLeft }) {
 
 OnlineGameController.propTypes = {
     onOpponentLeft: PropTypes.func,
+    onGameEnd: PropTypes.func,
 };
 
 OnlineGameController.defaultProps = {
     onOpponentLeft: null,
+    onGameEnd: null,
 };
 
 const styles = StyleSheet.create({

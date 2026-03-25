@@ -3,6 +3,7 @@
 // Durée d'un tour en secondes
 const TURN_DURATION = 30;
 const END_TURN_DURATION = 10;
+const INITIAL_PAWNS_COUNT = 12;
 
 const DECK_INIT = {
     dices: [
@@ -178,7 +179,10 @@ const GameService = {
                     displayChoices: true,
                     canMakeChoice: playerKey === gameState.currentTurn,
                     idSelectedChoice: gameState.choices.idSelectedChoice,
-                    availableChoices: gameState.choices.availableChoices
+                    availableChoices: gameState.choices.availableChoices.map((choice) => ({
+                        ...choice,
+                        isSelectable: GameService.grid.hasAvailableCellForChoice(gameState.grid, choice.id),
+                    }))
                 }
                 return choicesViewState;
             },
@@ -191,6 +195,24 @@ const GameService = {
                     grid: gameState.grid
                 };
 
+            },
+
+            scoreViewState: (playerKey, gameState) => {
+                if (playerKey === 'player:1') {
+                    return {
+                        playerScore: gameState.player1Score,
+                        opponentScore: gameState.player2Score,
+                        playerRemainingPawns: GameService.score.getRemainingPawns(gameState.grid, 'player:1'),
+                        opponentRemainingPawns: GameService.score.getRemainingPawns(gameState.grid, 'player:2'),
+                    };
+                }
+
+                return {
+                    playerScore: gameState.player2Score,
+                    opponentScore: gameState.player1Score,
+                    playerRemainingPawns: GameService.score.getRemainingPawns(gameState.grid, 'player:2'),
+                    opponentRemainingPawns: GameService.score.getRemainingPawns(gameState.grid, 'player:1'),
+                };
             }
 
         }
@@ -350,7 +372,6 @@ const GameService = {
         },
 
         isAnyCombinationAvailableOnGridForPlayer: (gameState) => {
-            const currentTurn = gameState.currentTurn;
             const grid = gameState.grid;
             const availableChoices = gameState.choices.availableChoices;
 
@@ -369,7 +390,108 @@ const GameService = {
             }
 
             return false; // aucune combinaison disponible pour le joueur actuel
+        },
+
+        hasAvailableCellForChoice: (grid, choiceId) => {
+            for (const row of grid) {
+                for (const cell of row) {
+                    if (cell.id === choiceId && cell.owner === null) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
+    },
+
+    score: {
+        getAllLines: (grid) => {
+            const lines = [];
+
+            // Rows
+            for (const row of grid) {
+                lines.push(row);
+            }
+
+            // Columns
+            for (let colIndex = 0; colIndex < grid[0].length; colIndex++) {
+                const column = [];
+                for (const row of grid) {
+                    column.push(row[colIndex]);
+                }
+                lines.push(column);
+            }
+
+            // Main diagonal
+            const mainDiagonal = [];
+            for (let i = 0; i < grid.length; i++) {
+                mainDiagonal.push(grid[i][i]);
+            }
+            lines.push(mainDiagonal);
+
+            // Anti-diagonal
+            const antiDiagonal = [];
+            for (let i = 0; i < grid.length; i++) {
+                antiDiagonal.push(grid[i][grid.length - 1 - i]);
+            }
+            lines.push(antiDiagonal);
+
+            return lines;
+        },
+
+        getMaxConsecutiveInLine: (line, playerKey) => {
+            let maxCount = 0;
+            let currentCount = 0;
+
+            for (const cell of line) {
+                if (cell.owner === playerKey) {
+                    currentCount += 1;
+                    maxCount = Math.max(maxCount, currentCount);
+                } else {
+                    currentCount = 0;
+                }
+            }
+
+            return maxCount;
+        },
+
+        computeScoreForPlayer: (grid, playerKey) => {
+            const lines = GameService.score.getAllLines(grid);
+            let score = 0;
+
+            // Per rule set: 3 aligned -> 1 point, 4 aligned -> 2 points.
+            lines.forEach((line) => {
+                const maxConsecutive = GameService.score.getMaxConsecutiveInLine(line, playerKey);
+
+                if (maxConsecutive >= 4) {
+                    score += 2;
+                } else if (maxConsecutive >= 3) {
+                    score += 1;
+                }
+            });
+
+            return score;
+        },
+
+        hasFiveAligned: (grid, playerKey) => {
+            const lines = GameService.score.getAllLines(grid);
+            return lines.some((line) => GameService.score.getMaxConsecutiveInLine(line, playerKey) >= 5);
+        },
+
+        getRemainingPawns: (grid, playerKey) => {
+            let ownedCellsCount = 0;
+
+            grid.forEach((row) => {
+                row.forEach((cell) => {
+                    if (cell.owner === playerKey) {
+                        ownedCellsCount += 1;
+                    }
+                });
+            });
+
+            return Math.max(0, INITIAL_PAWNS_COUNT - ownedCellsCount);
+        },
     },
 
     utils: {
