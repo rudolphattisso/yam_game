@@ -1,7 +1,7 @@
 // app/controller/online-game.controller.js
 
 import React, { useEffect, useState, useContext } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { SocketContext } from '../contexts/socket.context';
 import Board from '../components/board/board.component';
 
@@ -13,44 +13,61 @@ export default function OnlineGameController() {
     const [inQueue, setInQueue] = useState(false);
     const [inGame, setInGame] = useState(false);
     const [idOpponent, setIdOpponent] = useState(null);
+    const [statusMessage, setStatusMessage] = useState('Waiting for server datas...');
 
     useEffect(() => {
+        const onQueueAdded = (data) => {
+            console.log('[listen][queue.added]:', data);
+            setInQueue(data['inQueue']);
+            setInGame(data['inGame']);
+            setStatusMessage('Waiting for another player...');
+        };
+
+        const onGameStart = (data) => {
+            console.log('[listen][game.start]:', data);
+            setInQueue(data['inQueue']);
+            setInGame(data['inGame']);
+            setIdOpponent(data['idOpponent']);
+            setStatusMessage('Game found !');
+        };
+
+        const onOpponentLeft = () => {
+            setInQueue(false);
+            setInGame(false);
+            setIdOpponent(null);
+            setStatusMessage('Opponent disconnected. Join queue again.');
+            Alert.alert('Partie interrompue', 'Votre adversaire s\'est deconnecte.');
+        };
+
+        socket.on('queue.added', onQueueAdded);
+        socket.on('game.start', onGameStart);
+        socket.on('game.opponent.left', onOpponentLeft);
+
         console.log('[emit][queue.join]:', socket.id);
         socket.emit("queue.join");
         setInQueue(false);
         setInGame(false);
 
-        socket.on('queue.added', (data) => {
-            console.log('[listen][queue.added]:', data);
-            setInQueue(data['inQueue']);
-            setInGame(data['inGame']);
-        });
+        return () => {
+            socket.off('queue.added', onQueueAdded);
+            socket.off('game.start', onGameStart);
+            socket.off('game.opponent.left', onOpponentLeft);
+        };
 
-        socket.on('game.start', (data) => {
-            console.log('[listen][game.start]:', data);
-            setInQueue(data['inQueue']);
-            setInGame(data['inGame']);
-            setIdOpponent(data['idOpponent']);
-        });
-
-    }, []);
+    }, [socket]);
 
     return (
         <View style={styles.container}>
             {!inQueue && !inGame && (
-                <>
-                    <Text style={styles.paragraph}>
-                        Waiting for server datas...
-                    </Text>
-                </>
+                <Text style={styles.paragraph}>
+                    {statusMessage}
+                </Text>
             )}
 
             {inQueue && (
-                <>
-                    <Text style={styles.paragraph}>
-                        Waiting for another player...
-                    </Text>
-                </>
+                <Text style={styles.paragraph}>
+                    Waiting for another player...
+                </Text>
             )}
 
             {inGame && (

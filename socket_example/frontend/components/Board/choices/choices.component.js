@@ -14,14 +14,20 @@ const Choices = () => {
 
     useEffect(() => {
 
-        socket.on("game.choices.view-state", (data) => {
+        const onChoicesViewState = (data) => {
             setDisplayChoices(data['displayChoices']);
             setCanMakeChoice(data['canMakeChoice']);
             setIdSelectedChoice(data['idSelectedChoice']);
             setAvailableChoices(data['availableChoices']);
-        });
+        };
 
-    }, []);
+        socket.on("game.choices.view-state", onChoicesViewState);
+
+        return () => {
+            socket.off("game.choices.view-state", onChoicesViewState);
+        };
+
+    }, [socket]);
 
     const handleSelectChoice = (choiceId) => {
 

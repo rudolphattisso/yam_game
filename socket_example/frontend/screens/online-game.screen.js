@@ -1,13 +1,45 @@
 // app/screens/online-game.screen.js
 
 import React, { useContext } from "react";
-import { StyleSheet, View, Button, Text } from "react-native";
+import PropTypes from "prop-types";
+import { Alert, Platform, StyleSheet, View, Button, Text } from "react-native";
 import { SocketContext } from '../contexts/socket.context';
 import OnlineGameController from '../controllers/online-game.controller';
 
 export default function OnlineGameScreen({ navigation }) {
 
     const socket = useContext(SocketContext);
+
+    const leaveGame = () => {
+        socket.emit('game.leave');
+        navigation.navigate('HomeScreen');
+    };
+
+    const confirmLeaveGame = () => {
+        if (Platform.OS === 'web' && typeof globalThis.confirm === 'function') {
+            const shouldLeave = globalThis.confirm('Veux-tu vraiment quitter la partie en cours ?');
+            if (shouldLeave) {
+                leaveGame();
+            }
+            return;
+        }
+
+        Alert.alert(
+            'Quitter la partie',
+            'Veux-tu vraiment quitter la partie en cours ?',
+            [
+                {
+                    text: 'Annuler',
+                    style: 'cancel',
+                },
+                {
+                    text: 'Quitter',
+                    style: 'destructive',
+                    onPress: leaveGame,
+                },
+            ]
+        );
+    };
 
     return (
         <View style={styles.container}>
@@ -26,7 +58,7 @@ export default function OnlineGameScreen({ navigation }) {
                 <>
                     <Button
                         title="Revenir au menu"
-                        onPress={() => navigation.navigate('HomeScreen')}
+                        onPress={confirmLeaveGame}
                     />
                     <OnlineGameController />
                 </>
@@ -34,6 +66,12 @@ export default function OnlineGameScreen({ navigation }) {
         </View>
     );
 }
+
+OnlineGameScreen.propTypes = {
+    navigation: PropTypes.shape({
+        navigate: PropTypes.func.isRequired,
+    }).isRequired,
+};
 
 const styles = StyleSheet.create({
     container: {

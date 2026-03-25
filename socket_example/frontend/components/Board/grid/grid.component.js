@@ -20,12 +20,18 @@ const Grid = () => {
     };
 
     useEffect(() => {
-        socket.on("game.grid.view-state", (data) => {
+        const onGridViewState = (data) => {
             setDisplayGrid(data['displayGrid']);
             setCanSelectCells(Boolean(data['canSelectCells']));
             setGrid(Array.isArray(data['grid']) ? data['grid'] : []);
-        });
-    }, []);
+        };
+
+        socket.on("game.grid.view-state", onGridViewState);
+
+        return () => {
+            socket.off("game.grid.view-state", onGridViewState);
+        };
+    }, [socket]);
 
     return (
         <View style={styles.gridContainer}>

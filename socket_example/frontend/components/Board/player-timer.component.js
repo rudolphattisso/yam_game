@@ -8,10 +8,16 @@ const PlayerTimer = () => {
   const [playerTimer, setPlayerTimer] = useState(0);
 
   useEffect(() => {
-    socket.on("game.timer", (data) => {
-      setPlayerTimer(data['playerTimer'])
-    });
-  }, []);
+    const onGameTimer = (data) => {
+      setPlayerTimer(data['playerTimer']);
+    };
+
+    socket.on("game.timer", onGameTimer);
+
+    return () => {
+      socket.off("game.timer", onGameTimer);
+    };
+  }, [socket]);
 
   return (
     <View style={styles.playerTimerContainer}>

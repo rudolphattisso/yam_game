@@ -8,13 +8,15 @@ const OpponentTimer = () => {
   const [opponentTimer, setOpponentTimer] = useState(0);
 
   useEffect(() => {
-    socket.on('game.timer', (data) => {
+    const onGameTimer = (data) => {
       setOpponentTimer(data.opponentTimer);
-    });
+    };
+
+    socket.on('game.timer', onGameTimer);
 
     // clean up listener on unmount
     return () => {
-      socket.off('game.timer');
+      socket.off('game.timer', onGameTimer);
     };
   }, [socket]);
 

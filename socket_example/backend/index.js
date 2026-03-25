@@ -4,7 +4,7 @@ const app = require('express')();
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 
-var uniqid = require('uniqid');
+const uniqid = require('uniqid');
 const GameService = require('./services/game.service');
 
 // ---------------------------------------------------
@@ -44,6 +44,37 @@ const updateClientsViewGrid = (game) => {
   }, 200)
 }
 
+const getPlayerKeyBySocketId = (game, socketId) => {
+  if (game.player1Socket.id === socketId) {
+    return 'player:1';
+  }
+
+  if (game.player2Socket.id === socketId) {
+    return 'player:2';
+  }
+
+  return null;
+};
+
+const sendCurrentGameStateToPlayer = (game, socket) => {
+  const playerKey = getPlayerKeyBySocketId(game, socket.id);
+
+  if (!playerKey) {
+    return;
+  }
+
+  socket.emit('game.start', GameService.send.forPlayer.viewGameState(playerKey, game));
+
+  socket.emit('game.timer', GameService.send.forPlayer.gameTimer(playerKey, game.gameState));
+  socket.emit('game.deck.view-state', GameService.send.forPlayer.deckViewState(playerKey, game.gameState));
+  socket.emit('game.choices.view-state', GameService.send.forPlayer.choicesViewState(playerKey, game.gameState));
+  socket.emit('game.grid.view-state', GameService.send.forPlayer.gridViewState(playerKey, game.gameState));
+};
+
+const removeSocketFromQueue = (socketId) => {
+  queue = queue.filter((queuedSocket) => queuedSocket.id !== socketId);
+};
+
 const passTurn = (game) => {
   game.gameState.currentTurn = game.gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
   game.gameState.timer = GameService.timer.getTurnDuration();
@@ -73,11 +104,48 @@ const tryAutoPassTurnAtTimerZero = (game) => {
   return true;
 };
 
+const endGameBySocketId = (socketId) => {
+  const gameIndex = GameService.utils.findGameIndexBySocketId(games, socketId);
+
+  if (gameIndex === -1) {
+    return;
+  }
+
+  const game = games[gameIndex];
+
+  if (game.intervalId) {
+    clearInterval(game.intervalId);
+  }
+
+  const opponentSocket = game.player1Socket.id === socketId ? game.player2Socket : game.player1Socket;
+  if (opponentSocket?.connected) {
+    opponentSocket.emit('game.opponent.left', {
+      inQueue: false,
+      inGame: false,
+      message: 'Opponent disconnected',
+    });
+  }
+
+  games.splice(gameIndex, 1);
+};
+
 // ---------------------------------
 // -------- GAME METHODS -----------
 // ---------------------------------
 
 const newPlayerInQueue = (socket) => {
+
+  const existingGameIndex = GameService.utils.findGameIndexBySocketId(games, socket.id);
+  if (existingGameIndex !== -1) {
+    sendCurrentGameStateToPlayer(games[existingGameIndex], socket);
+    return;
+  }
+
+  const isAlreadyInQueue = queue.some((queuedSocket) => queuedSocket.id === socket.id);
+  if (isAlreadyInQueue) {
+    socket.emit('queue.added', GameService.send.forPlayer.viewQueueState());
+    return;
+  }
 
   queue.push(socket);
 
@@ -133,6 +201,8 @@ const createGame = (player1Socket, player2Socket) => {
 
   }, 1000);
 
+  games[gameIndex].intervalId = gameInterval;
+
   // On prévoit de couper l'horloge
   // pour le moment uniquement quand le socket se déconnecte
   player1Socket.on('disconnect', () => {
@@ -158,9 +228,26 @@ io.on('connection', socket => {
     newPlayerInQueue(socket);
   });
 
+  socket.on('game.leave', () => {
+    removeSocketFromQueue(socket.id);
+    endGameBySocketId(socket.id);
+  });
+
   socket.on('game.dices.roll', () => {
 
     const gameIndex = GameService.utils.findGameIndexBySocketId(games, socket.id);
+    if (gameIndex === -1) {
+      return;
+    }
+
+    if (games[gameIndex].gameState.currentTurn !== getPlayerKeyBySocketId(games[gameIndex], socket.id)) {
+      return;
+    }
+
+    // Si un choix est deja fait, le joueur doit poser la combinaison sur la grille.
+    if (games[gameIndex].gameState.choices.idSelectedChoice) {
+      return;
+    }
 
     if (games[gameIndex].gameState.deck.rollsCounter < games[gameIndex].gameState.deck.rollsMaximum) {
       // si ce n'est pas le dernier lancé
@@ -214,7 +301,22 @@ io.on('connection', socket => {
   socket.on('game.dices.lock', (idDice) => {
 
     const gameIndex = GameService.utils.findGameIndexBySocketId(games, socket.id);
+    if (gameIndex === -1) {
+      return;
+    }
+
+    if (games[gameIndex].gameState.currentTurn !== getPlayerKeyBySocketId(games[gameIndex], socket.id)) {
+      return;
+    }
+
     const indexDice = GameService.utils.findDiceIndexByDiceId(games[gameIndex].gameState.deck.dices, idDice);
+    if (indexDice === -1) {
+      return;
+    }
+
+    if (games[gameIndex].gameState.deck.rollsCounter > games[gameIndex].gameState.deck.rollsMaximum) {
+      return;
+    }
 
     // reverse flag 'locked'
     games[gameIndex].gameState.deck.dices[indexDice].locked = !games[gameIndex].gameState.deck.dices[indexDice].locked;
@@ -226,6 +328,21 @@ io.on('connection', socket => {
 
     // gestion des choix
     const gameIndex = GameService.utils.findGameIndexBySocketId(games, socket.id);
+    if (gameIndex === -1) {
+      return;
+    }
+
+    if (games[gameIndex].gameState.currentTurn !== getPlayerKeyBySocketId(games[gameIndex], socket.id)) {
+      return;
+    }
+
+    const isAvailableChoice = games[gameIndex].gameState.choices.availableChoices
+      .some((choice) => choice.id === data.choiceId);
+
+    if (!isAvailableChoice) {
+      return;
+    }
+
     games[gameIndex].gameState.choices.idSelectedChoice = data.choiceId;
 
     // Mise à jour de la grille
@@ -239,6 +356,31 @@ io.on('connection', socket => {
   socket.on('game.grid.selected', (data) => {
 
     const gameIndex = GameService.utils.findGameIndexBySocketId(games, socket.id);
+    if (gameIndex === -1) {
+      return;
+    }
+
+    if (games[gameIndex].gameState.currentTurn !== getPlayerKeyBySocketId(games[gameIndex], socket.id)) {
+      return;
+    }
+
+    if (!games[gameIndex].gameState.choices.idSelectedChoice) {
+      return;
+    }
+
+    const row = games[gameIndex].gameState.grid[data.rowIndex];
+    if (!row) {
+      return;
+    }
+
+    const selectedCell = row[data.cellIndex];
+    if (!selectedCell) {
+      return;
+    }
+
+    if (selectedCell.id !== data.cellId || !selectedCell.canBeChecked || selectedCell.owner !== null) {
+      return;
+    }
 
     games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
     games[gameIndex].gameState.grid = GameService.grid.selectCell(data.cellId, data.rowIndex, data.cellIndex, games[gameIndex].gameState.currentTurn, games[gameIndex].gameState.grid);
@@ -247,27 +389,14 @@ io.on('connection', socket => {
     // TODO: Then check if a player win
 
     // end turn
-    games[gameIndex].gameState.currentTurn = games[gameIndex].gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
-    games[gameIndex].gameState.timer = GameService.timer.getTurnDuration();
-
-    games[gameIndex].gameState.deck = GameService.init.deck();
-    games[gameIndex].gameState.choices = GameService.init.choices();
-
-    games[gameIndex].player1Socket.emit('game.timer', GameService.send.forPlayer.gameTimer('player:1', games[gameIndex].gameState));
-    games[gameIndex].player2Socket.emit('game.timer', GameService.send.forPlayer.gameTimer('player:2', games[gameIndex].gameState));
-
-    updateClientsViewDecks(games[gameIndex]);
-    updateClientsViewChoices(games[gameIndex]);
-    updateClientsViewGrid(games[gameIndex]);
+    passTurn(games[gameIndex]);
   });
 
 
   socket.on('disconnect', reason => {
     console.log(`[${socket.id}] socket disconnected - ${reason}`);
-  });
-
-  socket.on('disconnect', reason => {
-    console.log(`[${socket.id}] socket disconnected - ${reason}`);
+    removeSocketFromQueue(socket.id);
+    endGameBySocketId(socket.id);
   });
 
 });
