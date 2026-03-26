@@ -1,6 +1,7 @@
 // app/components/board/board.component.js
 
 import React, { useContext, useEffect, useState } from "react";
+import PropTypes from 'prop-types';
 import { View, Text, StyleSheet } from 'react-native';
 import OpponentTimer from './opponent-timer.component';
 import PlayerTimer from './player-timer.component';
@@ -13,7 +14,7 @@ import { SocketContext } from '../../contexts/socket.context';
 const OpponentInfos = () => {
   return (
     <View style={styles.opponentInfosContainer}>
-      <Text>Opponent infos</Text>
+      <Text style={styles.infoTitle}>🃏 Adversaire</Text>
     </View>
   );
 };
@@ -22,8 +23,8 @@ const OpponentInfos = () => {
 const OpponentScore = ({ score, remainingPawns }) => {
   return (
     <View style={styles.opponentScoreContainer}>
-      <Text>Score: {score}</Text>
-      <Text>Pions: {remainingPawns}</Text>
+      <Text style={styles.scoreText}>⭐ Score: {score}</Text>
+      <Text style={styles.pawnsText}>🎯 Pions: {remainingPawns}</Text>
     </View>
   );
 };
@@ -33,7 +34,7 @@ const OpponentScore = ({ score, remainingPawns }) => {
 const PlayerInfos = () => {
   return (
     <View style={styles.playerInfosContainer}>
-      <Text>Player Infos</Text>
+      <Text style={styles.infoTitle}>🎲 Toi</Text>
     </View>
   );
 };
@@ -43,8 +44,8 @@ const PlayerScore = ({ score, remainingPawns }) => {
 
   return (
     <View style={styles.playerScoreContainer}>
-      <Text>Score: {score}</Text>
-      <Text>Pions: {remainingPawns}</Text>
+      <Text style={styles.scoreText}>⭐ Score: {score}</Text>
+      <Text style={styles.pawnsText}>🎯 Pions: {remainingPawns}</Text>
     </View>
   );
 };
@@ -107,7 +108,26 @@ const Board = ({ gameViewState}) => {
   );
 };
 
+OpponentScore.propTypes = {
+  score: PropTypes.number.isRequired,
+  remainingPawns: PropTypes.number.isRequired,
+};
+
+PlayerScore.propTypes = {
+  score: PropTypes.number.isRequired,
+  remainingPawns: PropTypes.number.isRequired,
+};
+
+Board.propTypes = {
+  gameViewState: PropTypes.object,
+};
+
+Board.defaultProps = {
+  gameViewState: null,
+};
+
 const styles = StyleSheet.create({
+  // 🎨 Plateau global
   container: {
     flex: 1,
     flexDirection: 'column',
@@ -115,40 +135,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     height: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#D4AF37',
+    backgroundColor: '#1A3D22',
   },
+  // 🎨 Lignes du plateau
   row: {
     flexDirection: 'row',
     width: '100%',
     borderBottomWidth: 1,
-    borderColor: 'black',
+    borderColor: 'rgba(212, 175, 55, 0.4)',
   },
+  // 🎨 Cartes infos adversaire
   opponentInfosContainer: {
     flex: 7,
     justifyContent: 'center',
     alignItems: 'center',
     borderRightWidth: 1,
-    borderColor: 'black',
-    backgroundColor: "lightgrey"
+    borderColor: 'rgba(212, 175, 55, 0.4)',
+    backgroundColor: '#1A3D22',
   },
   opponentTimerScoreContainer: {
     flex: 3,
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: "lightgrey"
+    backgroundColor: '#1A3D22',
   },
 
+  // 🎨 Cartes score adversaire
   opponentScoreContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(122, 17, 17, 0.25)',
   },
   deckOpponentContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderColor: "black"
+    borderColor: 'rgba(212, 175, 55, 0.4)',
   },
 
   deckPlayerContainer: {
@@ -156,28 +185,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderColor: 'black',
+    borderColor: 'rgba(212, 175, 55, 0.4)',
   },
+  // 🎨 Cartes infos joueur
   playerInfosContainer: {
     flex: 7,
     justifyContent: 'center',
     alignItems: 'center',
     borderRightWidth: 1,
-    borderColor: 'black',
-    backgroundColor: "lightgrey"
+    borderColor: 'rgba(212, 175, 55, 0.4)',
+    backgroundColor: '#1A3D22',
   },
   playerTimerScoreContainer: {
     flex: 3,
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: "lightgrey"
+    backgroundColor: '#1A3D22',
   },
   playerScoreContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: "lightgrey"
+    backgroundColor: 'rgba(122, 17, 17, 0.25)',
+  },
+
+  // 🎨 Typographie du HUD
+  infoTitle: {
+    color: '#FFF7E6',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+  },
+  scoreText: {
+    color: '#FFE082',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  pawnsText: {
+    color: '#FFF7E6',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });
 

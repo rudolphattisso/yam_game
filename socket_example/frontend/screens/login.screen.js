@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { StyleSheet, View, Text, Pressable, TextInput } from "react-native";
+import { StyleSheet, View, Text, Pressable, TextInput, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LoginScreen({ navigation }) {
     const [formMode, setFormMode] = useState('login');
@@ -9,16 +10,19 @@ export default function LoginScreen({ navigation }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [focusedInput, setFocusedInput] = useState(null);
 
     const isRegisterMode = formMode === 'register';
-    const title = isRegisterMode ? 'Creer un compte' : 'Connexion';
-    const actionLabel = isRegisterMode ? 'Creer mon compte' : 'Se connecter';
+    const title = isRegisterMode ? '✨ Créer un compte' : '👾 Connexion';
+    const actionLabel = isRegisterMode ? 'CRÉER MON COMPTE' : 'SE CONNECTER';
 
     const handleSubmit = () => {
         navigation.navigate('HomeScreen', {
             userMode: 'connected',
             authMode: formMode,
-            displayName: isRegisterMode ? (username || email || 'Utilisateur') : (identifier || 'Utilisateur'),
+            displayName: isRegisterMode
+                ? (username || email || 'Utilisateur')
+                : (identifier || 'Utilisateur'),
         });
     };
 
@@ -29,91 +33,204 @@ export default function LoginScreen({ navigation }) {
         setEmail('');
         setPassword('');
         setConfirmPassword('');
+        setFocusedInput(null);
     };
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.subtitle}>
-                {isRegisterMode
-                    ? 'Renseigne tes informations pour creer un compte.'
-                    : 'Connecte-toi si tu as deja un compte.'}
-            </Text>
 
-            <View style={styles.switchRow}>
-                <Pressable
-                    style={[styles.switchButton, !isRegisterMode && styles.switchButtonActive]}
-                    onPress={() => handleSwitchMode('login')}
+            {/* ── Particules décoratives ── */}
+            <View style={styles.particle1} />
+            <View style={styles.particle2} />
+            <View style={styles.particle3} />
+            <View style={styles.particle4} />
+
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.keyboardView}
+            >
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
                 >
-                    <Text style={[styles.switchButtonText, !isRegisterMode && styles.switchButtonTextActive]}>
-                        Connexion
-                    </Text>
-                </Pressable>
-                <Pressable
-                    style={[styles.switchButton, isRegisterMode && styles.switchButtonActive]}
-                    onPress={() => handleSwitchMode('register')}
-                >
-                    <Text style={[styles.switchButtonText, isRegisterMode && styles.switchButtonTextActive]}>
-                        Inscription
-                    </Text>
-                </Pressable>
-            </View>
 
-            {!isRegisterMode && (
-                <TextInput
-                    style={styles.input}
-                    placeholder="Email ou pseudo"
-                    value={identifier}
-                    onChangeText={setIdentifier}
-                    autoCapitalize="none"
-                />
-            )}
+                    {/* ── Header ── */}
+                    <View style={styles.header}>
+                        <Text style={styles.logo}>🎲 YAM MASTER</Text>
+                        <Text style={styles.title}>{title}</Text>
+                        <Text style={styles.subtitle}>
+                            {isRegisterMode
+                                ? 'Rejoins la compétition dès maintenant !'
+                                : 'Content de te revoir, champion !'}
+                        </Text>
+                    </View>
 
-            {isRegisterMode && (
-                <>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Pseudo"
-                        value={username}
-                        onChangeText={setUsername}
-                        autoCapitalize="none"
-                    />
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Email"
-                        value={email}
-                        onChangeText={setEmail}
-                        autoCapitalize="none"
-                        keyboardType="email-address"
-                    />
-                </>
-            )}
+                    {/* ── Carte principale ── */}
+                    <View style={styles.card}>
 
-            <TextInput
-                style={styles.input}
-                placeholder="Mot de passe"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-            />
+                        {/* Toggle Connexion / Inscription */}
+                        <View style={styles.switchRow}>
+                            <Pressable
+                                style={[styles.switchButton, !isRegisterMode && styles.switchButtonActive]}
+                                onPress={() => handleSwitchMode('login')}
+                            >
+                                {!isRegisterMode ? (
+                                    <LinearGradient
+                                        colors={['#FF00FF', '#8A2BE2']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={styles.switchGradient}
+                                    >
+                                        <Text style={styles.switchButtonTextActive}>Connexion</Text>
+                                    </LinearGradient>
+                                ) : (
+                                    <Text style={styles.switchButtonText}>Connexion</Text>
+                                )}
+                            </Pressable>
 
-            {isRegisterMode && (
-                <TextInput
-                    style={styles.input}
-                    placeholder="Confirmer le mot de passe"
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry
-                />
-            )}
+                            <Pressable
+                                style={[styles.switchButton, isRegisterMode && styles.switchButtonActive]}
+                                onPress={() => handleSwitchMode('register')}
+                            >
+                                {isRegisterMode ? (
+                                    <LinearGradient
+                                        colors={['#FF00FF', '#8A2BE2']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={styles.switchGradient}
+                                    >
+                                        <Text style={styles.switchButtonTextActive}>Inscription</Text>
+                                    </LinearGradient>
+                                ) : (
+                                    <Text style={styles.switchButtonText}>Inscription</Text>
+                                )}
+                            </Pressable>
+                        </View>
 
-            <Pressable style={styles.submitButton} onPress={handleSubmit}>
-                <Text style={styles.submitButtonText}>{actionLabel}</Text>
-            </Pressable>
+                        {/* ── Champs du formulaire ── */}
+                        {!isRegisterMode && (
+                            <View style={[
+                                styles.inputWrapper,
+                                focusedInput === 'identifier' && styles.inputWrapperFocused
+                            ]}>
+                                <Text style={styles.inputIcon}>👤</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Email ou pseudo"
+                                    placeholderTextColor="#6B7280"
+                                    value={identifier}
+                                    onChangeText={setIdentifier}
+                                    onFocus={() => setFocusedInput('identifier')}
+                                    onBlur={() => setFocusedInput(null)}
+                                    autoCapitalize="none"
+                                />
+                            </View>
+                        )}
 
-            <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-                <Text style={styles.backButtonText}>Retour</Text>
-            </Pressable>
+                        {isRegisterMode && (
+                            <>
+                                <View style={[
+                                    styles.inputWrapper,
+                                    focusedInput === 'username' && styles.inputWrapperFocused
+                                ]}>
+                                    <Text style={styles.inputIcon}>🎮</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Pseudo"
+                                        placeholderTextColor="#6B7280"
+                                        value={username}
+                                        onChangeText={setUsername}
+                                        onFocus={() => setFocusedInput('username')}
+                                        onBlur={() => setFocusedInput(null)}
+                                        autoCapitalize="none"
+                                    />
+                                </View>
+
+                                <View style={[
+                                    styles.inputWrapper,
+                                    focusedInput === 'email' && styles.inputWrapperFocused
+                                ]}>
+                                    <Text style={styles.inputIcon}>📧</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Email"
+                                        placeholderTextColor="#6B7280"
+                                        value={email}
+                                        onChangeText={setEmail}
+                                        onFocus={() => setFocusedInput('email')}
+                                        onBlur={() => setFocusedInput(null)}
+                                        autoCapitalize="none"
+                                        keyboardType="email-address"
+                                    />
+                                </View>
+                            </>
+                        )}
+
+                        <View style={[
+                            styles.inputWrapper,
+                            focusedInput === 'password' && styles.inputWrapperFocused
+                        ]}>
+                            <Text style={styles.inputIcon}>🔒</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Mot de passe"
+                                placeholderTextColor="#6B7280"
+                                value={password}
+                                onChangeText={setPassword}
+                                onFocus={() => setFocusedInput('password')}
+                                onBlur={() => setFocusedInput(null)}
+                                secureTextEntry
+                            />
+                        </View>
+
+                        {isRegisterMode && (
+                            <View style={[
+                                styles.inputWrapper,
+                                focusedInput === 'confirm' && styles.inputWrapperFocused
+                            ]}>
+                                <Text style={styles.inputIcon}>🔐</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Confirmer le mot de passe"
+                                    placeholderTextColor="#6B7280"
+                                    value={confirmPassword}
+                                    onChangeText={setConfirmPassword}
+                                    onFocus={() => setFocusedInput('confirm')}
+                                    onBlur={() => setFocusedInput(null)}
+                                    secureTextEntry
+                                />
+                            </View>
+                        )}
+
+                        {/* ── Bouton principal ── */}
+                        <Pressable
+                            style={({ pressed }) => [styles.submitButton, pressed && styles.submitButtonPressed]}
+                            onPress={handleSubmit}
+                        >
+                            <LinearGradient
+                                colors={['#FF00FF', '#8A2BE2']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.submitGradient}
+                            >
+                                <Text style={styles.submitButtonText}>{actionLabel}</Text>
+                            </LinearGradient>
+                        </Pressable>
+
+                        {/* ── Bouton retour ── */}
+                        <Pressable
+                            style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.6 }]}
+                            onPress={() => navigation.goBack()}
+                        >
+                            <Text style={styles.backButtonText}>← Retour à l'accueil</Text>
+                        </Pressable>
+
+                    </View>
+                    {/* fin card */}
+
+                </ScrollView>
+            </KeyboardAvoidingView>
         </View>
     );
 }
@@ -126,80 +243,237 @@ LoginScreen.propTypes = {
 };
 
 const styles = StyleSheet.create({
+
+    // ─── Fond global ────────────────────────────────
     container: {
         flex: 1,
-        backgroundColor: "#f8fafc",
-        alignItems: "center",
-        justifyContent: "center",
-        paddingHorizontal: 24,
+        backgroundColor: '#0A0A1A',
+    },
+
+    // ─── Particules ─────────────────────────────────
+    particle1: {
+        position: 'absolute',
+        top: 60,
+        left: 20,
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        backgroundColor: 'rgba(138, 43, 226, 0.15)',
+        borderWidth: 2,
+        borderColor: 'rgba(138, 43, 226, 0.4)',
+    },
+    particle2: {
+        position: 'absolute',
+        top: 140,
+        right: 30,
+        width: 45,
+        height: 45,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255, 0, 255, 0.15)',
+        borderWidth: 2,
+        borderColor: 'rgba(255, 0, 255, 0.4)',
+    },
+    particle3: {
+        position: 'absolute',
+        bottom: 120,
+        left: 40,
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: 'rgba(138, 43, 226, 0.2)',
+        borderWidth: 1,
+        borderColor: 'rgba(138, 43, 226, 0.5)',
+    },
+    particle4: {
+        position: 'absolute',
+        bottom: 80,
+        right: 50,
+        width: 55,
+        height: 55,
+        borderRadius: 28,
+        backgroundColor: 'rgba(255, 0, 255, 0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 0, 255, 0.3)',
+    },
+
+    // ─── KeyboardAvoidingView ────────────────────────
+    keyboardView: {
+        flex: 1,
+    },
+    scrollContent: {
+        flexGrow: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 40,
+    },
+
+    // ─── Header ─────────────────────────────────────
+    header: {
+        alignItems: 'center',
+        marginBottom: 28,
+    },
+    logo: {
+        fontSize: 18,
+        fontWeight: '900',
+        color: '#B0B0FF',
+        letterSpacing: 3,
+        marginBottom: 10,
     },
     title: {
-        fontSize: 28,
-        fontWeight: "700",
-        color: "#0f172a",
-        marginBottom: 8,
+        fontSize: 30,
+        fontWeight: '900',
+        color: '#FFFFFF',
+        textShadowColor: 'rgba(255, 0, 255, 0.6)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 12,
+        marginBottom: 6,
+        letterSpacing: 0.5,
     },
     subtitle: {
-        fontSize: 15,
-        color: "#475569",
-        textAlign: "center",
-        marginBottom: 24,
+        fontSize: 14,
+        color: '#8B8BC0',
+        textAlign: 'center',
+        letterSpacing: 0.3,
     },
+
+    // ─── Carte ──────────────────────────────────────
+    card: {
+        width: '100%',
+        maxWidth: 400,
+        backgroundColor: 'rgba(20, 20, 40, 0.85)',
+        borderRadius: 24,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(138, 43, 226, 0.3)',
+        shadowColor: '#8A2BE2',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.4,
+        shadowRadius: 20,
+        elevation: 15,
+    },
+
+    // ─── Toggle ─────────────────────────────────────
     switchRow: {
-        flexDirection: "row",
-        backgroundColor: "#e2e8f0",
-        borderRadius: 12,
+        flexDirection: 'row',
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 14,
         padding: 4,
-        marginBottom: 20,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(138, 43, 226, 0.2)',
     },
     switchButton: {
-        paddingVertical: 10,
-        paddingHorizontal: 18,
+        flex: 1,
         borderRadius: 10,
+        overflow: 'hidden',
+        minHeight: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     switchButtonActive: {
-        backgroundColor: "#ffffff",
+        shadowColor: '#FF00FF',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    switchGradient: {
+        width: '100%',
+        paddingVertical: 10,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     switchButtonText: {
-        color: "#334155",
-        fontWeight: "600",
+        color: '#6B7280',
+        fontWeight: '600',
+        fontSize: 14,
+        paddingVertical: 10,
     },
     switchButtonTextActive: {
-        color: "#0f172a",
+        color: '#FFFFFF',
+        fontWeight: '800',
+        fontSize: 14,
+    },
+
+    // ─── Inputs ─────────────────────────────────────
+    inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderWidth: 1,
+        borderColor: 'rgba(138, 43, 226, 0.2)',
+        borderRadius: 14,
+        paddingHorizontal: 14,
+        marginBottom: 12,
+        minHeight: 52,
+        width: '100%',
+    },
+    inputWrapperFocused: {
+        borderColor: '#FF00FF',
+        backgroundColor: 'rgba(255, 0, 255, 0.06)',
+        shadowColor: '#FF00FF',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    inputIcon: {
+        fontSize: 16,
+        marginRight: 10,
     },
     input: {
-        width: "100%",
-        maxWidth: 320,
-        backgroundColor: "#ffffff",
-        borderWidth: 1,
-        borderColor: "#cbd5e1",
-        borderRadius: 12,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        marginBottom: 12,
-    },
-    submitButton: {
-        width: "100%",
-        maxWidth: 320,
-        backgroundColor: "#0284c7",
-        borderRadius: 12,
+        flex: 1,
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '500',
         paddingVertical: 14,
-        alignItems: "center",
+    },
+
+    // ─── Bouton principal ────────────────────────────
+    submitButton: {
+        width: '100%',
+        borderRadius: 16,
+        overflow: 'hidden',
         marginTop: 8,
+        shadowColor: '#FF00FF',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.5,
+        shadowRadius: 15,
+        elevation: 8,
+    },
+    submitButtonPressed: {
+        opacity: 0.85,
+        transform: [{ scale: 0.98 }],
+    },
+    submitGradient: {
+        paddingVertical: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 16,
     },
     submitButtonText: {
-        color: "#ffffff",
+        color: '#FFFFFF',
         fontSize: 16,
-        fontWeight: "700",
+        fontWeight: '800',
+        letterSpacing: 1.5,
+        textShadowColor: 'rgba(0,0,0,0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
     },
+
+    // ─── Bouton retour ───────────────────────────────
     backButton: {
-        marginTop: 16,
+        marginTop: 18,
+        alignSelf: 'center',
         paddingVertical: 10,
-        paddingHorizontal: 18,
+        paddingHorizontal: 16,
     },
     backButtonText: {
-        color: "#475569",
-        fontSize: 15,
-        fontWeight: "600",
+        color: '#8B8BC0',
+        fontSize: 14,
+        fontWeight: '600',
+        letterSpacing: 0.3,
     },
 });

@@ -86,38 +86,63 @@ const PlayerDeck = () => {
 };
 
 const styles = StyleSheet.create({
+  // 🎨 Zone deck joueur
   deckPlayerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderColor: "black"
+    borderColor: "rgba(212, 175, 55, 0.4)",
+    backgroundColor: "#1A3D22",
   },
+  // 🎨 Compteur de lancers
   rollInfoContainer: {
     marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#7A1111",
+    borderWidth: 1,
+    borderColor: "rgba(212, 175, 55, 0.4)",
   },
   rollInfoText: {
-    fontSize: 14,
-    fontStyle: "italic",
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFF7E6",
   },
+  // 🎨 Rangée de dés joueur
   diceContainer: {
     flexDirection: "row",
     width: "70%",
     justifyContent: "space-between",
     marginBottom: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(212, 175, 55, 0.4)",
+    backgroundColor: "rgba(122, 17, 17, 0.25)",
   },
+  // 🎨 Bouton lancer
   rollButton: {
     width: "30%",
-    paddingVertical: 10,
-    borderRadius: 5,
+    paddingVertical: 12,
+    borderRadius: 999,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "black"
+    backgroundColor: "#7A1111",
+    borderWidth: 1,
+    borderColor: "#D4AF37",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   rollButtonText: {
-    fontSize: 18,
-    color: "white",
-    fontWeight: "bold",
+    fontSize: 14,
+    color: "#FFF7E6",
+    fontWeight: "900",
   },
 });
 

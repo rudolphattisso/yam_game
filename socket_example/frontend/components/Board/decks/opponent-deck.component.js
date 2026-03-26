@@ -46,18 +46,27 @@ const OpponentDeck = () => {
 };
 
 const styles = StyleSheet.create({
+  // 🎨 Zone deck adverse
   deckOpponentContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderColor: "black"
+    borderColor: "rgba(212, 175, 55, 0.4)",
+    backgroundColor: "#1A3D22",
   },
+  // 🎨 Rangée de dés adverses
   diceContainer: {
     flexDirection: "row",
     width: "70%",
     justifyContent: "space-between",
     marginBottom: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(212, 175, 55, 0.4)",
+    backgroundColor: "rgba(122, 17, 17, 0.25)",
   },
 });
 

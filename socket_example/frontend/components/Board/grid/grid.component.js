@@ -62,12 +62,15 @@ const Grid = () => {
 };
 
 const styles = StyleSheet.create({
+    // 🎨 Conteneur grille
     gridContainer: {
         flex: 7,
         justifyContent: "center",
         alignItems: "center",
         flexDirection: "column",
+        backgroundColor: "#1A3D22",
     },
+    // 🎨 Lignes de grille
     row: {
         flexDirection: "row",
         flex: 1,
@@ -75,6 +78,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
     },
+    // 🎨 Cellules de base
     cell: {
         flexDirection: "row",
         flex: 2,
@@ -83,21 +87,28 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         borderWidth: 1,
-        borderColor: "black",
+        borderColor: "rgba(212, 175, 55, 0.4)",
+        backgroundColor: "#FFF7E6",
     },
+    // 🎨 Typographie des cellules
     cellText: {
         fontSize: 11,
+        color: "#3D1F14",
+        fontWeight: "700",
     },
+    // 🎨 Cellule possédée joueur
     playerOwnedCell: {
-        backgroundColor: "lightgreen",
+        backgroundColor: "#2E7D32",
         opacity: 0.9,
     },
+    // 🎨 Cellule possédée adversaire
     opponentOwnedCell: {
-        backgroundColor: "lightcoral",
+        backgroundColor: "#B71C1C",
         opacity: 0.9,
     },
+    // 🎨 Cellule sélectionnable
     canBeCheckedCell: {
-        backgroundColor: "lightyellow",
+        backgroundColor: "#FFE082",
     },
     topBorder: {
         borderTopWidth: 1,

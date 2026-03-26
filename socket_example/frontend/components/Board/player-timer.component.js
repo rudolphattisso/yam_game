@@ -21,7 +21,7 @@ const PlayerTimer = () => {
 
   return (
     <View style={styles.playerTimerContainer}>
-      <Text>Timer: {playerTimer}</Text>
+      <Text style={styles.timerText}>⏳ {playerTimer}s</Text>
     </View>
   );
 };
@@ -31,7 +31,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: "lightgrey"
-  }
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: '#7A1111',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.4)',
+  },
+  // 🎨 Texte timer joueur
+  timerText: {
+    color: '#FFF7E6',
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });
 export default PlayerTimer;

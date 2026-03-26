@@ -56,7 +56,14 @@ const Choices = () => {
                         onPress={() => handleSelectChoice(choice.id, choice.isSelectable)}
                         disabled={isChoiceDisabled}
                     >
-                        <Text style={styles.choiceText}>{choice.value}</Text>
+                        <Text
+                            style={[
+                                styles.choiceText,
+                                idSelectedChoice === choice.id && styles.selectedChoiceText,
+                            ]}
+                        >
+                            {choice.value}
+                        </Text>
                     </TouchableOpacity>
                     );
                 })}
@@ -65,37 +72,53 @@ const Choices = () => {
 };
 
 const styles = StyleSheet.create({
+    // 🎨 Zone des choix
     choicesContainer: {
         flex: 1,
         flexDirection: "row",
         flexWrap: "wrap",
         justifyContent: "space-between",
         paddingHorizontal: 10,
+        paddingVertical: 6,
         borderBottomWidth: 1,
-        borderColor: "black",
-        backgroundColor: "lightgrey"
+        borderColor: "rgba(212, 175, 55, 0.4)",
+        backgroundColor: "#1A3D22",
     },
+    // 🎨 Boutons de combinaison
     choiceButton: {
-        backgroundColor: "white",
-        borderRadius: 5,
+        backgroundColor: "#FFF7E6",
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: "rgba(212, 175, 55, 0.4)",
         marginVertical: 5,
         alignItems: "center",
         justifyContent: "center",
         width: "100%",
-        height: "10%"
+        height: "10%",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 2,
+        elevation: 1,
     },
     selectedChoice: {
-        backgroundColor: "lightgreen",
+        backgroundColor: "#7A1111",
     },
+    // 🎨 Typographie des choix
     choiceText: {
         fontSize: 13,
-        fontWeight: "bold",
+        fontWeight: "700",
+        color: "#3D1F14",
     },
     disabledChoice: {
-        opacity: 0.5,
+        opacity: 0.45,
     },
     unavailableChoice: {
-        backgroundColor: '#d9d9d9',
+        backgroundColor: '#7E8A80',
+    },
+    // 🎨 Contraste du choix sélectionné
+    selectedChoiceText: {
+        color: '#FFF7E6',
     },
 });
 
