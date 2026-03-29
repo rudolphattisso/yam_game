@@ -117,41 +117,67 @@ function WaitingView() {
   );
 }
 
-// ─── GameFoundView ────────────────────────────────────────────────────────────
-function GameFoundView({ idOpponent }) {
+// ─── GameFoundSplash ───────────────────────────────────────────────────────────
+function GameFoundSplash({ idOpponent }) {
+  const [countdown, setCountdown] = useState(3);
+  const scale = useRef(new Animated.Value(0.7)).current;
+
+  useEffect(() => {
+    // Pop-in animation
+    Animated.spring(scale, {
+      toValue: 1,
+      friction: 5,
+      tension: 80,
+      useNativeDriver: true,
+    }).start();
+
+    // Countdown tick
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) { clearInterval(interval); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [scale]);
+
   return (
-    <View style={styles.gameFoundWrapper}>
+    <View style={styles.splashOverlay}>
+      <Animated.View style={[styles.splashCard, { transform: [{ scale }] }]}>
 
-      {/* Banner */}
-      <LinearGradient
-        colors={[C.primary, "#B71C1C"]}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-        style={styles.gameFoundBanner}
-      >
-        <Ionicons name="flash" size={16} color={C.goldLight} />
-        <Text style={styles.gameFoundBannerText}>Adversaire trouvé !</Text>
-        <Ionicons name="flash" size={16} color={C.goldLight} />
-      </LinearGradient>
+        {/* Titre */}
+        <LinearGradient
+          colors={[C.primary, "#B71C1C"]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={styles.splashBanner}
+        >
+          <Ionicons name="flash" size={18} color={C.goldLight} />
+          <Text style={styles.splashBannerText}>Adversaire trouvé !</Text>
+          <Ionicons name="flash" size={18} color={C.goldLight} />
+        </LinearGradient>
 
-      {/* VS row */}
-      <View style={styles.vsRow}>
-        <View style={styles.playerChip}>
-          <Ionicons name="person" size={14} color={C.text} />
-          <Text style={styles.playerChipText}>Vous</Text>
+        {/* VS row */}
+        <View style={styles.vsRow}>
+          <View style={styles.playerChip}>
+            <Ionicons name="person" size={14} color={C.text} />
+            <Text style={styles.playerChipText}>Vous</Text>
+          </View>
+          <View style={styles.vsBadge}>
+            <Text style={styles.vsText}>VS</Text>
+          </View>
+          <View style={[styles.playerChip, styles.playerChipOpponent]}>
+            <Ionicons name="person" size={14} color={C.goldLight} />
+            <Text style={[styles.playerChipText, { color: C.goldLight }]}>
+              {idOpponent?.slice(0, 8)}…
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.vsBadge}>
-          <Text style={styles.vsText}>VS</Text>
-        </View>
+        {/* Compte à rebours */}
+        <Text style={styles.splashCountdown}>La partie commence dans {countdown}s</Text>
 
-        <View style={[styles.playerChip, styles.playerChipOpponent]}>
-          <Ionicons name="person" size={14} color={C.goldLight} />
-          <Text style={[styles.playerChipText, { color: C.goldLight }]}>
-            {idOpponent?.slice(0, 8)}…
-          </Text>
-        </View>
-      </View>
-
+      </Animated.View>
     </View>
   );
 }
@@ -160,10 +186,11 @@ function GameFoundView({ idOpponent }) {
 export default function OnlineGameController({ onOpponentLeft, onGameEnd }) {
   const socket = useContext(SocketContext);
 
-  const [inQueue,       setInQueue]       = useState(false);
-  const [inGame,        setInGame]        = useState(false);
-  const [idOpponent,    setIdOpponent]    = useState(null);
-  const [statusMessage, setStatusMessage] = useState("Connexion au serveur…");
+  const [inQueue,        setInQueue]        = useState(false);
+  const [inGame,         setInGame]         = useState(false);
+  const [idOpponent,     setIdOpponent]     = useState(null);
+  const [statusMessage,  setStatusMessage]  = useState("Connexion au serveur…");
+  const [showGameFound,  setShowGameFound]  = useState(false);
 
   useEffect(() => {
     const onQueueAdded = (data) => {
@@ -176,6 +203,8 @@ export default function OnlineGameController({ onOpponentLeft, onGameEnd }) {
       setInGame(data["inGame"]);
       setIdOpponent(data["idOpponent"]);
       setStatusMessage("Game found !");
+      setShowGameFound(true);
+      setTimeout(() => setShowGameFound(false), 5000);
     };
     const handleOpponentLeft = () => { if (onOpponentLeft) onOpponentLeft(); };
     const handleGameEnd = (data) => {
@@ -214,12 +243,14 @@ export default function OnlineGameController({ onOpponentLeft, onGameEnd }) {
       {/* ── File d'attente ── */}
       {inQueue && !inGame && <WaitingView />}
 
-      {/* ── Partie trouvée ── */}
-      {inGame && (
-        <>
-          <GameFoundView idOpponent={idOpponent} />
-          <Board />
-        </>
+      {/* ── Splash adversaire trouvé (5s) ── */}
+      {inGame && showGameFound && (
+        <GameFoundSplash idOpponent={idOpponent} />
+      )}
+
+      {/* ── Plateau de jeu ── */}
+      {inGame && !showGameFound && (
+        <Board />
       )}
 
     </View>
@@ -336,15 +367,31 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // ── Game Found ────────────────────────────────────────────────────────────
-  gameFoundWrapper: {
-    alignItems: "center",
-    gap: 14,
-    marginBottom: 16,
+  // ── Splash adversaire trouvé ──────────────────────────────────────────────────
+  splashOverlay: {
+    flex: 1,
     width: "100%",
-    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#1A3D22",
   },
-  gameFoundBanner: {
+  splashCard: {
+    alignItems: "center",
+    gap: 18,
+    paddingVertical: 36,
+    paddingHorizontal: 28,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: C.gold,
+    backgroundColor: "rgba(26,61,34,0.97)",
+    width: "85%",
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  splashBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -354,11 +401,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.gold,
   },
-  gameFoundBannerText: {
+  splashBannerText: {
     color: C.goldLight,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: "900",
     letterSpacing: 0.4,
+  },
+  splashCountdown: {
+    color: C.textMuted,
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 4,
   },
 
   // ── VS row ────────────────────────────────────────────────────────────────
@@ -412,9 +465,9 @@ OnlineGameController.defaultProps = {
   onOpponentLeft: null,
   onGameEnd:      null,
 };
-GameFoundView.propTypes = {
+GameFoundSplash.propTypes = {
   idOpponent: PropTypes.string,
 };
-GameFoundView.defaultProps = {
+GameFoundSplash.defaultProps = {
   idOpponent: "???",
 };
