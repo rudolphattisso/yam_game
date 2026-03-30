@@ -20,6 +20,9 @@ const C = {
   green:       "#4ADE80",
 };
 
+const GAME_FOUND_SPLASH_DURATION_MS = 5000;
+const GAME_FOUND_SPLASH_COUNTDOWN_SECONDS = GAME_FOUND_SPLASH_DURATION_MS / 1000;
+
 // ─── WaitingView ──────────────────────────────────────────────────────────────
 function WaitingView() {
   const dot1 = useRef(new Animated.Value(0)).current;
@@ -119,7 +122,7 @@ function WaitingView() {
 
 // ─── GameFoundSplash ───────────────────────────────────────────────────────────
 function GameFoundSplash({ idOpponent }) {
-  const [countdown, setCountdown] = useState(3);
+  const [countdown, setCountdown] = useState(GAME_FOUND_SPLASH_COUNTDOWN_SECONDS);
   const scale = useRef(new Animated.Value(0.7)).current;
 
   useEffect(() => {
@@ -185,6 +188,7 @@ function GameFoundSplash({ idOpponent }) {
 // ─── Controller ───────────────────────────────────────────────────────────────
 export default function OnlineGameController({ onOpponentLeft, onGameEnd }) {
   const socket = useContext(SocketContext);
+  const gameFoundTimeoutRef = useRef(null);
 
   const [inQueue,        setInQueue]        = useState(false);
   const [inGame,         setInGame]         = useState(false);
@@ -204,7 +208,15 @@ export default function OnlineGameController({ onOpponentLeft, onGameEnd }) {
       setIdOpponent(data["idOpponent"]);
       setStatusMessage("Game found !");
       setShowGameFound(true);
-      setTimeout(() => setShowGameFound(false), 5000);
+
+      if (gameFoundTimeoutRef.current) {
+        clearTimeout(gameFoundTimeoutRef.current);
+      }
+
+      gameFoundTimeoutRef.current = setTimeout(() => {
+        setShowGameFound(false);
+        gameFoundTimeoutRef.current = null;
+      }, GAME_FOUND_SPLASH_DURATION_MS);
     };
     const handleOpponentLeft = () => { if (onOpponentLeft) onOpponentLeft(); };
     const handleGameEnd = (data) => {
@@ -222,6 +234,10 @@ export default function OnlineGameController({ onOpponentLeft, onGameEnd }) {
     setInQueue(false); setInGame(false);
 
     return () => {
+      if (gameFoundTimeoutRef.current) {
+        clearTimeout(gameFoundTimeoutRef.current);
+      }
+
       socket.off("queue.added",        onQueueAdded);
       socket.off("game.start",         onGameStart);
       socket.off("game.opponent.left", handleOpponentLeft);
@@ -243,14 +259,15 @@ export default function OnlineGameController({ onOpponentLeft, onGameEnd }) {
       {/* ── File d'attente ── */}
       {inQueue && !inGame && <WaitingView />}
 
-      {/* ── Splash adversaire trouvé (5s) ── */}
-      {inGame && showGameFound && (
-        <GameFoundSplash idOpponent={idOpponent} />
-      )}
-
       {/* ── Plateau de jeu ── */}
-      {inGame && !showGameFound && (
-        <Board />
+      {inGame && (
+        <View style={styles.boardWrapper}>
+          <Board />
+
+          {showGameFound && (
+            <GameFoundSplash idOpponent={idOpponent} />
+          )}
+        </View>
       )}
 
     </View>
@@ -291,6 +308,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 28,
     gap: 14,
+  },
+  boardWrapper: {
+    flex: 1,
+    width: "100%",
+    position: "relative",
   },
   iconRing: {
     borderRadius: 999,
@@ -369,11 +391,14 @@ const styles = StyleSheet.create({
 
   // ── Splash adversaire trouvé ──────────────────────────────────────────────────
   splashOverlay: {
-    flex: 1,
-    width: "100%",
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#1A3D22",
+    backgroundColor: "rgba(26,61,34,0.94)",
   },
   splashCard: {
     alignItems: "center",
