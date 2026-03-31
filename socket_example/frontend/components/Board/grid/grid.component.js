@@ -3,6 +3,7 @@
 import React, { useEffect, useContext, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { SocketContext } from "../../../contexts/socket.context";
+import { BOARD_COLORS } from "../board-colors";
 
 const Grid = () => {
 
@@ -98,12 +99,12 @@ const styles = StyleSheet.create({
     },
     // 🎨 Cellule possédée joueur
     playerOwnedCell: {
-        backgroundColor: "#2E7D32",
+        backgroundColor: BOARD_COLORS.player1,
         opacity: 0.9,
     },
     // 🎨 Cellule possédée adversaire
     opponentOwnedCell: {
-        backgroundColor: "#B71C1C",
+        backgroundColor: BOARD_COLORS.player2,
         opacity: 0.9,
     },
     // 🎨 Cellule sélectionnable

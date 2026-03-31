@@ -4,6 +4,7 @@ import React, { useState, useContext, useEffect } from "react";
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { SocketContext } from "../../../contexts/socket.context";
 import Dice from "./dices.component";
+import { BOARD_COLORS } from "../board-colors";
 
 const PlayerDeck = () => {
 
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderBottomWidth: 1,
     borderColor: "rgba(212, 175, 55, 0.4)",
-    backgroundColor: "#1A3D22",
+    backgroundColor: BOARD_COLORS.player1Soft,
   },
   // 🎨 Compteur de lancers
   rollInfoContainer: {
@@ -101,7 +102,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: "#7A1111",
+    backgroundColor: BOARD_COLORS.player1,
     borderWidth: 1,
     borderColor: "rgba(212, 175, 55, 0.4)",
   },
@@ -121,7 +122,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(212, 175, 55, 0.4)",
-    backgroundColor: "rgba(122, 17, 17, 0.25)",
+    backgroundColor: BOARD_COLORS.player1Soft,
   },
   // 🎨 Bouton lancer
   rollButton: {
@@ -130,7 +131,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#7A1111",
+    backgroundColor: BOARD_COLORS.player1,
     borderWidth: 1,
     borderColor: "#D4AF37",
     shadowColor: "#000",

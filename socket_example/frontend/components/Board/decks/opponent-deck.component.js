@@ -4,6 +4,7 @@ import React, { useState, useContext, useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import { SocketContext } from "../../../contexts/socket.context";
 import Dice from "./dices.component";
+import { BOARD_COLORS } from "../board-colors";
 
 const OpponentDeck = () => {
 
@@ -53,7 +54,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderBottomWidth: 1,
     borderColor: "rgba(212, 175, 55, 0.4)",
-    backgroundColor: "#1A3D22",
+    backgroundColor: BOARD_COLORS.player2Soft,
   },
   // 🎨 Rangée de dés adverses
   diceContainer: {
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(212, 175, 55, 0.4)",
-    backgroundColor: "rgba(122, 17, 17, 0.25)",
+    backgroundColor: BOARD_COLORS.player2Soft,
   },
 });
 
