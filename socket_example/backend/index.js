@@ -1,11 +1,34 @@
 // index.js
 
-const app = require('express')();
+const path = require('node:path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+
+const express = require('express');
+const cors = require('cors');
+const app = express();
 const http = require('node:http').Server(app);
-const io = require('socket.io')(http);
+const corsAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || process.env.FRONTEND_ORIGIN || '*')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const io = require('socket.io')(http, {
+  cors: {
+    origin: corsAllowedOrigins.includes('*') ? '*' : corsAllowedOrigins,
+    methods: ['GET', 'POST'],
+  },
+});
 
 const uniqid = require('uniqid');
 const GameService = require('./services/game.service');
+const { testDatabaseConnection } = require('./db/postgres');
+const authRouter = require('./routes/auth.routes');
+
+app.use(express.json());
+app.use(cors({
+  origin: corsAllowedOrigins.includes('*') ? '*' : corsAllowedOrigins,
+  methods: ['GET', 'POST', 'OPTIONS'],
+}));
+app.use('/api/auth', authRouter);
 
 // ---------------------------------------------------
 // -------- CONSTANTS AND GLOBAL VARIABLES -----------
@@ -486,7 +509,19 @@ io.on('connection', socket => {
 
 app.get('/', (req, res) => res.sendFile('index.html'));
 
-http.listen(3000, function () {
-  console.log('listening on *:3000');
-});
+const PORT = Number(process.env.PORT || 3000);
+
+const startServer = async () => {
+  try {
+    await testDatabaseConnection();
+  } catch (error) {
+    console.error(`[db] PostgreSQL ping failed: ${error.message}`);
+  }
+
+  http.listen(PORT, function () {
+    console.log(`listening on *:${PORT}`);
+  });
+};
+
+startServer();
 

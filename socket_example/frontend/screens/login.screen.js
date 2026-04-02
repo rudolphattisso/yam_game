@@ -3,6 +3,10 @@ import PropTypes from "prop-types";
 import { StyleSheet, View, Text, Pressable, TextInput, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL
+    || process.env.EXPO_PUBLIC_SOCKET_URL
+    || (Platform.OS === 'web' ? 'http://localhost:3000' : 'http://172.20.10.3:3000');
+
 export default function LoginScreen({ navigation }) {
     const [formMode, setFormMode] = useState('login');
     const [identifier, setIdentifier] = useState('');
@@ -11,19 +15,72 @@ export default function LoginScreen({ navigation }) {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [focusedInput, setFocusedInput] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formError, setFormError] = useState('');
 
     const isRegisterMode = formMode === 'register';
     const title = isRegisterMode ? '✨ Créer un compte' : '👾 Connexion';
     const actionLabel = isRegisterMode ? 'CRÉER MON COMPTE' : 'SE CONNECTER';
 
-    const handleSubmit = () => {
-        navigation.navigate('HomeScreen', {
-            userMode: 'connected',
-            authMode: formMode,
-            displayName: isRegisterMode
-                ? (username || email || 'Utilisateur')
-                : (identifier || 'Utilisateur'),
-        });
+    const handleSubmit = async () => {
+        setFormError('');
+
+        if (isRegisterMode) {
+            if (!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+                setFormError('Tous les champs sont obligatoires');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                setFormError('Les mots de passe ne correspondent pas');
+                return;
+            }
+        } else if (!identifier.trim() || !password.trim()) {
+            setFormError('Identifiant et mot de passe obligatoires');
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
+            const payload = isRegisterMode
+                ? {
+                    username: username.trim(),
+                    email: email.trim(),
+                    password,
+                }
+                : {
+                    identifier: identifier.trim(),
+                    password,
+                };
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setFormError(data?.message || 'Erreur de connexion au serveur');
+                return;
+            }
+
+            navigation.navigate('HomeScreen', {
+                userMode: 'connected',
+                authMode: formMode,
+                displayName: data?.user?.username || data?.user?.email || 'Utilisateur',
+                user: data?.user,
+                accessToken: data?.accessToken,
+                refreshToken: data?.refreshToken,
+            });
+        } catch (_error) {
+            setFormError(`Impossible de joindre l API (${API_BASE_URL})`);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleSwitchMode = (nextMode) => {
@@ -34,6 +91,7 @@ export default function LoginScreen({ navigation }) {
         setPassword('');
         setConfirmPassword('');
         setFocusedInput(null);
+        setFormError('');
     };
 
     return (
@@ -207,16 +265,21 @@ export default function LoginScreen({ navigation }) {
                         <Pressable
                             style={({ pressed }) => [styles.submitButton, pressed && styles.submitButtonPressed]}
                             onPress={handleSubmit}
+                            disabled={isSubmitting}
                         >
                             <LinearGradient
-                                colors={['#FF00FF', '#8A2BE2']}
+                                colors={isSubmitting ? ['#6B7280', '#4B5563'] : ['#FF00FF', '#8A2BE2']}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 1 }}
                                 style={styles.submitGradient}
                             >
-                                <Text style={styles.submitButtonText}>{actionLabel}</Text>
+                                <Text style={styles.submitButtonText}>{isSubmitting ? 'CHARGEMENT...' : actionLabel}</Text>
                             </LinearGradient>
                         </Pressable>
+
+                        {!!formError && (
+                            <Text style={styles.formErrorText}>{formError}</Text>
+                        )}
 
                         {/* ── Bouton retour ── */}
                         <Pressable
@@ -461,6 +524,12 @@ const styles = StyleSheet.create({
         textShadowColor: 'rgba(0,0,0,0.3)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 3,
+    },
+    formErrorText: {
+        color: '#FCA5A5',
+        fontWeight: '700',
+        marginTop: 10,
+        textAlign: 'center',
     },
 
     // ─── Bouton retour ───────────────────────────────
