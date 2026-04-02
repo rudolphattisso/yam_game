@@ -8,7 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 export default function StartScreen({ navigation }) {
   const handleGuestMode = () => {
-    navigation.navigate("PseudoScreen", { userMode: "guest" });
+    navigation.navigate("HomeScreen", { userMode: "guest" });
   };
 
   const handleAuthenticationMode = () => {
