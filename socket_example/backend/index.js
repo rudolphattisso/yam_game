@@ -20,8 +20,9 @@ const io = require('socket.io')(http, {
 
 const uniqid = require('uniqid');
 const GameService = require('./services/game.service');
-const { testDatabaseConnection } = require('./db/postgres');
+const { query, testDatabaseConnection } = require('./db/postgres');
 const authRouter = require('./routes/auth.routes');
+const gamesRouter = require('./routes/games.routes');
 
 app.use(express.json());
 app.use(cors({
@@ -29,6 +30,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'OPTIONS'],
 }));
 app.use('/api/auth', authRouter);
+app.use('/api/games', gamesRouter);
 
 // ---------------------------------------------------
 // -------- CONSTANTS AND GLOBAL VARIABLES -----------
@@ -135,6 +137,173 @@ const tryAutoPassTurnAtTimerZero = (game) => {
   return true;
 };
 
+const findFirstFreeCellForChoice = (grid, choiceId) => {
+  for (let rowIndex = 0; rowIndex < grid.length; rowIndex += 1) {
+    for (let cellIndex = 0; cellIndex < grid[rowIndex].length; cellIndex += 1) {
+      const cell = grid[rowIndex][cellIndex];
+      if (cell.id === choiceId && cell.owner === null) {
+        return { rowIndex, cellIndex };
+      }
+    }
+  }
+
+  return null;
+};
+
+const listFreeCellsForChoice = (grid, choiceId) => {
+  const cells = [];
+
+  for (let rowIndex = 0; rowIndex < grid.length; rowIndex += 1) {
+    for (let cellIndex = 0; cellIndex < grid[rowIndex].length; cellIndex += 1) {
+      const cell = grid[rowIndex][cellIndex];
+      if (cell.id === choiceId && cell.owner === null) {
+        cells.push({ rowIndex, cellIndex, cellId: choiceId });
+      }
+    }
+  }
+
+  return cells;
+};
+
+const pickBestBotMove = (gameState) => {
+  const candidateCells = gameState.choices.availableChoices.flatMap((choice) =>
+    listFreeCellsForChoice(gameState.grid, choice.id),
+  );
+
+  if (candidateCells.length === 0) {
+    return null;
+  }
+
+  let bestMove = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  candidateCells.forEach((candidate) => {
+    const simulatedGrid = GameService.grid.selectCell(
+      candidate.cellId,
+      candidate.rowIndex,
+      candidate.cellIndex,
+      'player:2',
+      gameState.grid,
+    );
+
+    const botScore = GameService.score.computeScoreForPlayer(simulatedGrid, 'player:2');
+    const playerScore = GameService.score.computeScoreForPlayer(simulatedGrid, 'player:1');
+
+    const hasImmediateWin = GameService.score.hasFiveAligned(simulatedGrid, 'player:2');
+
+    // Simple heuristic: prioritize immediate win, then maximize own score while minimizing opponent score.
+    const moveScore = (hasImmediateWin ? 10_000 : 0) + (botScore * 10) - (playerScore * 4);
+
+    if (moveScore > bestScore) {
+      bestScore = moveScore;
+      bestMove = candidate;
+    }
+  });
+
+  return bestMove;
+};
+
+const resolveGameAfterMove = (gameIndex) => {
+  const game = games[gameIndex];
+
+  if (!game) {
+    return;
+  }
+
+  game.gameState.player1Score = GameService.score.computeScoreForPlayer(game.gameState.grid, 'player:1');
+  game.gameState.player2Score = GameService.score.computeScoreForPlayer(game.gameState.grid, 'player:2');
+
+  updateClientsViewGrid(game);
+  updateClientsViewScores(game);
+
+  if (GameService.score.hasFiveAligned(game.gameState.grid, 'player:1')) {
+    endGameWithResult(gameIndex, 'player:1', 'five-aligned');
+    return;
+  }
+
+  if (GameService.score.hasFiveAligned(game.gameState.grid, 'player:2')) {
+    endGameWithResult(gameIndex, 'player:2', 'five-aligned');
+    return;
+  }
+
+  const player1RemainingPawns = GameService.score.getRemainingPawns(game.gameState.grid, 'player:1');
+  const player2RemainingPawns = GameService.score.getRemainingPawns(game.gameState.grid, 'player:2');
+
+  if (player1RemainingPawns === 0 || player2RemainingPawns === 0) {
+    const player1Score = game.gameState.player1Score;
+    const player2Score = game.gameState.player2Score;
+
+    let winner = 'draw';
+    if (player1Score > player2Score) {
+      winner = 'player:1';
+    } else if (player2Score > player1Score) {
+      winner = 'player:2';
+    }
+
+    endGameWithResult(gameIndex, winner, 'no-pawns-left');
+    return;
+  }
+
+  passTurn(game);
+};
+
+const runBotTurn = (gameIndex) => {
+  const game = games[gameIndex];
+
+  if (!game || !game.isVsBot || game.gameState.currentTurn !== 'player:2') {
+    return;
+  }
+
+  const gameState = game.gameState;
+
+  if (gameState.deck.rollsCounter <= gameState.deck.rollsMaximum) {
+    gameState.deck.dices = GameService.dices.roll(gameState.deck.dices);
+    gameState.deck.rollsCounter += 1;
+
+    if (gameState.deck.rollsCounter > gameState.deck.rollsMaximum) {
+      gameState.deck.dices = GameService.dices.lockEveryDice(gameState.deck.dices);
+      gameState.timer = 0;
+    }
+
+    const isDefi = false;
+    const isSec = gameState.deck.rollsCounter === 2;
+    gameState.choices.availableChoices = GameService.choices.findCombinations(gameState.deck.dices, isDefi, isSec);
+
+    updateClientsViewDecks(game);
+    updateClientsViewChoices(game);
+    updateClientsViewTimers(game);
+  }
+
+  const bestMove = pickBestBotMove(gameState);
+
+  if (bestMove) {
+    gameState.choices.idSelectedChoice = bestMove.cellId;
+    gameState.grid = GameService.grid.resetcanBeCheckedCells(gameState.grid);
+    gameState.grid = GameService.grid.selectCell(
+      bestMove.cellId,
+      bestMove.rowIndex,
+      bestMove.cellIndex,
+      'player:2',
+      gameState.grid,
+    );
+
+    resolveGameAfterMove(gameIndex);
+    return;
+  }
+
+  if (gameState.timer === 0 || gameState.deck.rollsCounter > gameState.deck.rollsMaximum) {
+    passTurn(game);
+  }
+};
+
+const createBotSocket = () => ({
+  id: `bot:${uniqid()}`,
+  connected: true,
+  emit: () => {},
+  on: () => {},
+  off: () => {},
+});
+
 const endGameBySocketId = (socketId) => {
   const gameIndex = GameService.utils.findGameIndexBySocketId(games, socketId);
 
@@ -160,6 +329,55 @@ const endGameBySocketId = (socketId) => {
   games.splice(gameIndex, 1);
 };
 
+const persistFinishedGame = async (game, winnerKey, reason) => {
+  try {
+    const mode = game.isVsBot ? 'bot' : 'online';
+    const winnerSlot = winnerKey === 'player:1' ? 1 : winnerKey === 'player:2' ? 2 : null;
+
+    const gameInsert = await query(
+      `
+      INSERT INTO games (mode, status, started_at, ended_at, winner_slot, win_reason, metadata)
+      VALUES ($1, 'finished', $2, NOW(), $3, $4, $5::jsonb)
+      RETURNING id
+      `,
+      [
+        mode,
+        game.startedAt || new Date(),
+        winnerSlot,
+        reason,
+        JSON.stringify({
+          idGame: game.idGame,
+          finalGrid: game.gameState.grid,
+        }),
+      ],
+    );
+
+    const persistedGameId = gameInsert.rows[0].id;
+
+    await query(
+      `
+      INSERT INTO game_players (game_id, guest_label, socket_id, player_slot, score, is_winner)
+      VALUES
+        ($1, $2, $3, 1, $4, $5),
+        ($1, $6, $7, 2, $8, $9)
+      `,
+      [
+        persistedGameId,
+        game.isVsBot ? 'human' : 'player1',
+        game.player1Socket.id,
+        game.gameState.player1Score,
+        winnerKey === 'player:1',
+        game.isVsBot ? 'bot' : 'player2',
+        game.player2Socket.id,
+        game.gameState.player2Score,
+        winnerKey === 'player:2',
+      ],
+    );
+  } catch (error) {
+    console.warn(`[db] failed to persist finished game: ${error.message}`);
+  }
+};
+
 const endGameWithResult = (gameIndex, winnerKey, reason) => {
   const game = games[gameIndex];
 
@@ -174,6 +392,7 @@ const endGameWithResult = (gameIndex, winnerKey, reason) => {
   game.player1Socket.emit('game.end', {
     winner: winnerKey,
     reason,
+    isWinner: winnerKey === 'player:1',
     playerScore: game.gameState.player1Score,
     opponentScore: game.gameState.player2Score,
   });
@@ -181,9 +400,12 @@ const endGameWithResult = (gameIndex, winnerKey, reason) => {
   game.player2Socket.emit('game.end', {
     winner: winnerKey,
     reason,
+    isWinner: winnerKey === 'player:2',
     playerScore: game.gameState.player2Score,
     opponentScore: game.gameState.player1Score,
   });
+
+  persistFinishedGame(game, winnerKey, reason);
 
   games.splice(gameIndex, 1);
 };
@@ -219,13 +441,27 @@ const newPlayerInQueue = (socket) => {
   }
 };
 
+const newPlayerVsBot = (socket) => {
+  const existingGameIndex = GameService.utils.findGameIndexBySocketId(games, socket.id);
+  if (existingGameIndex !== -1) {
+    sendCurrentGameStateToPlayer(games[existingGameIndex], socket);
+    return;
+  }
 
-const createGame = (player1Socket, player2Socket) => {
+  removeSocketFromQueue(socket.id);
+
+  const botSocket = createBotSocket();
+  createGame(socket, botSocket, { isVsBot: true });
+};
+
+const createGame = (player1Socket, player2Socket, options = {}) => {
 
   const newGame = GameService.init.gameState();
   newGame['idGame'] = uniqid();
+  newGame['startedAt'] = new Date();
   newGame['player1Socket'] = player1Socket;
   newGame['player2Socket'] = player2Socket;
+  newGame['isVsBot'] = options.isVsBot === true;
 
   games.push(newGame);
 
@@ -246,6 +482,11 @@ const createGame = (player1Socket, player2Socket) => {
     const game = games[gameIndex];
 
     if (!game) {
+      return;
+    }
+
+    if (game.isVsBot && game.gameState.currentTurn === 'player:2') {
+      runBotTurn(gameIndex);
       return;
     }
 
@@ -286,6 +527,11 @@ io.on('connection', socket => {
   socket.on('queue.join', () => {
     console.log(`[${socket.id}] new player in queue `);
     newPlayerInQueue(socket);
+  });
+
+  socket.on('queue.bot.join', () => {
+    console.log(`[${socket.id}] new player vs bot`);
+    newPlayerVsBot(socket);
   });
 
   socket.on('game.leave', () => {
@@ -453,45 +699,7 @@ io.on('connection', socket => {
 
     games[gameIndex].gameState.grid = GameService.grid.resetcanBeCheckedCells(games[gameIndex].gameState.grid);
     games[gameIndex].gameState.grid = GameService.grid.selectCell(data.cellId, data.rowIndex, data.cellIndex, games[gameIndex].gameState.currentTurn, games[gameIndex].gameState.grid);
-
-    games[gameIndex].gameState.player1Score = GameService.score.computeScoreForPlayer(games[gameIndex].gameState.grid, 'player:1');
-    games[gameIndex].gameState.player2Score = GameService.score.computeScoreForPlayer(games[gameIndex].gameState.grid, 'player:2');
-
-    updateClientsViewGrid(games[gameIndex]);
-    updateClientsViewScores(games[gameIndex]);
-
-    // Victoire immédiate: 5 pions alignés.
-    if (GameService.score.hasFiveAligned(games[gameIndex].gameState.grid, 'player:1')) {
-      endGameWithResult(gameIndex, 'player:1', 'five-aligned');
-      return;
-    }
-
-    if (GameService.score.hasFiveAligned(games[gameIndex].gameState.grid, 'player:2')) {
-      endGameWithResult(gameIndex, 'player:2', 'five-aligned');
-      return;
-    }
-
-    // Fin de pions: le meilleur score gagne.
-    const player1RemainingPawns = GameService.score.getRemainingPawns(games[gameIndex].gameState.grid, 'player:1');
-    const player2RemainingPawns = GameService.score.getRemainingPawns(games[gameIndex].gameState.grid, 'player:2');
-
-    if (player1RemainingPawns === 0 || player2RemainingPawns === 0) {
-      const player1Score = games[gameIndex].gameState.player1Score;
-      const player2Score = games[gameIndex].gameState.player2Score;
-
-      let winner = 'draw';
-      if (player1Score > player2Score) {
-        winner = 'player:1';
-      } else if (player2Score > player1Score) {
-        winner = 'player:2';
-      }
-
-      endGameWithResult(gameIndex, winner, 'no-pawns-left');
-      return;
-    }
-
-    // end turn
-    passTurn(games[gameIndex]);
+    resolveGameAfterMove(gameIndex);
   });
 
 
@@ -509,7 +717,7 @@ io.on('connection', socket => {
 
 app.get('/', (req, res) => res.sendFile('index.html'));
 
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT || process.env.BACKEND_PORT_DOCKER || process.env.BACKEND_PORT || 3000);
 
 const startServer = async () => {
   try {
