@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { StyleSheet, View, Text, Pressable, TextInput, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,8 +7,9 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL
     || process.env.EXPO_PUBLIC_SOCKET_URL
     || (Platform.OS === 'web' ? 'http://localhost:3000' : 'http://172.20.10.3:3000');
 
-export default function LoginScreen({ navigation }) {
-    const [formMode, setFormMode] = useState('login');
+export default function LoginScreen({ navigation, route }) {
+    const initialModeFromRoute = route?.params?.initialMode === 'register' ? 'register' : 'login';
+    const [formMode, setFormMode] = useState(initialModeFromRoute);
     const [identifier, setIdentifier] = useState('');
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -21,6 +22,11 @@ export default function LoginScreen({ navigation }) {
     const isRegisterMode = formMode === 'register';
     const title = isRegisterMode ? '✨ Créer un compte' : '👾 Connexion';
     const actionLabel = isRegisterMode ? 'CRÉER MON COMPTE' : 'SE CONNECTER';
+
+    useEffect(() => {
+        const nextMode = route?.params?.initialMode === 'register' ? 'register' : 'login';
+        setFormMode(nextMode);
+    }, [route?.params?.initialMode]);
 
     const handleSubmit = async () => {
         setFormError('');
@@ -303,6 +309,15 @@ LoginScreen.propTypes = {
         navigate: PropTypes.func.isRequired,
         goBack: PropTypes.func.isRequired,
     }).isRequired,
+    route: PropTypes.shape({
+        params: PropTypes.shape({
+            initialMode: PropTypes.oneOf(['login', 'register']),
+        }),
+    }),
+};
+
+LoginScreen.defaultProps = {
+    route: undefined,
 };
 
 const styles = StyleSheet.create({

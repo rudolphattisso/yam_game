@@ -12,7 +12,11 @@ export default function StartScreen({ navigation }) {
   };
 
   const handleAuthenticationMode = () => {
-    navigation.navigate("LoginScreen");
+    navigation.navigate("LoginScreen", { initialMode: 'login' });
+  };
+
+  const handleRegisterMode = () => {
+    navigation.navigate("LoginScreen", { initialMode: 'register' });
   };
 
   return (
@@ -134,7 +138,7 @@ export default function StartScreen({ navigation }) {
           </View>
 
           {/* ── Lien créer un compte ── */}
-          <Pressable onPress={handleAuthenticationMode}>
+          <Pressable onPress={handleRegisterMode}>
             <Text style={styles.createAccountLink}>
               Pas encore de compte ?{" "}
               <Text style={styles.createAccountLinkBold}>S'inscrire</Text>

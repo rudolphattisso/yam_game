@@ -1,11 +1,40 @@
+import React, { useState } from "react";
 import PropTypes from "prop-types";
-import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
+import { StyleSheet, View, Text, TouchableOpacity, Pressable } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL
+  || process.env.EXPO_PUBLIC_SOCKET_URL
+  || 'http://localhost:3000';
+
 export default function HomeScreen({ navigation, route }) {
+  const [isOnlineHovered, setIsOnlineHovered] = useState(false);
+  const [isBotHovered, setIsBotHovered] = useState(false);
+  const [isLogoutHovered, setIsLogoutHovered] = useState(false);
   const userMode = route?.params?.userMode;
   const displayName = route?.params?.displayName;
+  const refreshToken = route?.params?.refreshToken;
+  const isConnected = userMode === "connected";
   const modeLabel = userMode === "connected" ? "Connecté" : "Invité";
+
+  const handleLogout = async () => {
+    try {
+      if (refreshToken) {
+        await fetch(`${API_BASE_URL}/api/auth/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+    } catch (_error) {
+      // On continue la deconnexion locale meme en cas d'echec reseau.
+    }
+
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'StartScreen' }],
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -42,36 +71,74 @@ export default function HomeScreen({ navigation, route }) {
         )}
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.button}
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              isOnlineHovered && styles.buttonHovered,
+              pressed && styles.buttonPressed,
+            ]}
             onPress={() => navigation.navigate("OnlineGameScreen")}
-            activeOpacity={0.8}
+            onHoverIn={() => setIsOnlineHovered(true)}
+            onHoverOut={() => setIsOnlineHovered(false)}
           >
             <LinearGradient
-              colors={['#FF00FF', '#8A2BE2']}
+              colors={isOnlineHovered ? ['#FF4DFF', '#A855F7'] : ['#FF00FF', '#8A2BE2']}
               start={{x: 0, y: 0}}
               end={{x: 1, y: 1}}
               style={styles.buttonGradient}
             >
               <Text style={styles.buttonText}>JOUER EN LIGNE</Text>
             </LinearGradient>
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
-            style={styles.button}
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              isBotHovered && styles.buttonHovered,
+              pressed && styles.buttonPressed,
+            ]}
             onPress={() => navigation.navigate("VsBotGameScreen")}
-            activeOpacity={0.8}
+            onHoverIn={() => setIsBotHovered(true)}
+            onHoverOut={() => setIsBotHovered(false)}
           >
             <LinearGradient
-              colors={['#4B0082', '#800080']}
+              colors={isBotHovered ? ['#6D28D9', '#9333EA'] : ['#4B0082', '#800080']}
               start={{x: 0, y: 0}}
               end={{x: 1, y: 1}}
               style={styles.buttonGradient}
             >
               <Text style={styles.buttonText}>DÉFI BOT</Text>
             </LinearGradient>
-          </TouchableOpacity>
+          </Pressable>
         </View>
+
+        {isConnected && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.logoutButton,
+              pressed && styles.logoutButtonPressed,
+            ]}
+            onPress={handleLogout}
+            onHoverIn={() => setIsLogoutHovered(true)}
+            onHoverOut={() => setIsLogoutHovered(false)}
+          >
+            <LinearGradient
+              colors={isLogoutHovered ? ['#B71C1C', '#7A1111'] : ['#1E1654', '#16103A']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.logoutButtonGradient}
+            >
+              <Text
+                style={[
+                  styles.logoutButtonText,
+                  isLogoutHovered && styles.logoutButtonTextHovered,
+                ]}
+              >
+                SE DÉCONNECTER
+              </Text>
+            </LinearGradient>
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -229,6 +296,41 @@ const styles = StyleSheet.create({
     gap: 16,
   },
 
+  logoutButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(138, 43, 226, 0.45)',
+    shadowColor: '#8A2BE2',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+
+  logoutButtonPressed: {
+    opacity: 0.9,
+  },
+
+  logoutButtonGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+  },
+
+  logoutButtonText: {
+    color: '#CBB4FF',
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 0.8,
+  },
+
+  logoutButtonTextHovered: {
+    color: '#FFECEC',
+  },
+
   button: {
     borderRadius: 16,
     overflow: 'hidden',
@@ -237,6 +339,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.6,
     shadowRadius: 15,
     elevation: 8,
+  },
+
+  buttonHovered: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    shadowOpacity: 0.85,
+    shadowRadius: 22,
+    elevation: 12,
+  },
+
+  buttonPressed: {
+    opacity: 0.92,
   },
 
   buttonGradient: {
