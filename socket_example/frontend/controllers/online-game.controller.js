@@ -20,9 +20,6 @@ const C = {
   green:       "#4ADE80",
 };
 
-const GAME_FOUND_SPLASH_DURATION_MS = 5000;
-const GAME_FOUND_SPLASH_COUNTDOWN_SECONDS = GAME_FOUND_SPLASH_DURATION_MS / 1000;
-
 // ─── WaitingView ──────────────────────────────────────────────────────────────
 function WaitingView() {
   const dot1 = useRef(new Animated.Value(0)).current;
@@ -102,7 +99,7 @@ function WaitingView() {
       </View>
 
       {/* Sous-label */}
-      <Text style={styles.waitingSubtitle}>En file d'attente…</Text>
+      <Text style={styles.waitingSubtitle}>En file d'attente...</Text>
 
       {/* Badges */}
       <View style={styles.badgeRow}>
@@ -120,108 +117,72 @@ function WaitingView() {
   );
 }
 
-// ─── GameFoundSplash ───────────────────────────────────────────────────────────
-function GameFoundSplash({ idOpponent }) {
-  const [countdown, setCountdown] = useState(GAME_FOUND_SPLASH_COUNTDOWN_SECONDS);
-  const scale = useRef(new Animated.Value(0.7)).current;
-
-  useEffect(() => {
-    // Pop-in animation
-    Animated.spring(scale, {
-      toValue: 1,
-      friction: 5,
-      tension: 80,
-      useNativeDriver: true,
-    }).start();
-
-    // Countdown tick
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) { clearInterval(interval); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [scale]);
-
+// ─── GameFoundView ────────────────────────────────────────────────────────────
+function GameFoundView({ idOpponent }) {
   return (
-    <View style={styles.splashOverlay}>
-      <Animated.View style={[styles.splashCard, { transform: [{ scale }] }]}>
+    <View style={styles.gameFoundWrapper}>
+      <LinearGradient
+        colors={[C.primary, "#B71C1C"]}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+        style={styles.gameFoundBanner}
+      >
+        <Ionicons name="flash" size={16} color={C.goldLight} />
+        <Text style={styles.gameFoundBannerText}>Adversaire trouve !</Text>
+        <Ionicons name="flash" size={16} color={C.goldLight} />
+      </LinearGradient>
 
-        {/* Titre */}
-        <LinearGradient
-          colors={[C.primary, "#B71C1C"]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-          style={styles.splashBanner}
-        >
-          <Ionicons name="flash" size={18} color={C.goldLight} />
-          <Text style={styles.splashBannerText}>Adversaire trouvé !</Text>
-          <Ionicons name="flash" size={18} color={C.goldLight} />
-        </LinearGradient>
-
-        {/* VS row */}
-        <View style={styles.vsRow}>
-          <View style={styles.playerChip}>
-            <Ionicons name="person" size={14} color={C.text} />
-            <Text style={styles.playerChipText}>Vous</Text>
-          </View>
-          <View style={styles.vsBadge}>
-            <Text style={styles.vsText}>VS</Text>
-          </View>
-          <View style={[styles.playerChip, styles.playerChipOpponent]}>
-            <Ionicons name="person" size={14} color={C.goldLight} />
-            <Text style={[styles.playerChipText, { color: C.goldLight }]}>
-              {idOpponent?.slice(0, 8)}…
-            </Text>
-          </View>
+      <View style={styles.vsRow}>
+        <View style={styles.playerChip}>
+          <Ionicons name="person" size={14} color={C.text} />
+          <Text style={styles.playerChipText}>Vous</Text>
         </View>
-
-        {/* Compte à rebours */}
-        <Text style={styles.splashCountdown}>La partie commence dans {countdown}s</Text>
-
-      </Animated.View>
+        <View style={styles.vsBadge}>
+          <Text style={styles.vsText}>VS</Text>
+        </View>
+        <View style={[styles.playerChip, styles.playerChipOpponent]}>
+          <Ionicons name="person" size={14} color={C.goldLight} />
+          <Text style={[styles.playerChipText, { color: C.goldLight }]}> 
+            {idOpponent?.slice(0, 8)}...
+          </Text>
+        </View>
+      </View>
     </View>
   );
 }
 
 // ─── Controller ───────────────────────────────────────────────────────────────
-export default function OnlineGameController({ onOpponentLeft, onGameEnd }) {
+export default function OnlineGameController({
+  onOpponentLeft = null,
+  onGameEnd = null,
+  joinEvent = "queue.join",
+  waitingStatusMessage = "Veuillez patienter, un adversaire va se connecter...",
+  hideWaitingUi = false,
+  displayGameFoundSplash = false,
+}) {
   const socket = useContext(SocketContext);
-  const gameFoundTimeoutRef = useRef(null);
 
   const [inQueue,        setInQueue]        = useState(false);
   const [inGame,         setInGame]         = useState(false);
   const [idOpponent,     setIdOpponent]     = useState(null);
-  const [statusMessage,  setStatusMessage]  = useState("Connexion au serveur…");
-  const [showGameFound,  setShowGameFound]  = useState(false);
+  const [statusMessage,  setStatusMessage]  = useState(waitingStatusMessage);
 
   useEffect(() => {
     const onQueueAdded = (data) => {
-      setInQueue(data["inQueue"]);
+      const queueState = hideWaitingUi ? false : (data?.inQueue ?? true);
+      setInQueue(queueState);
       setInGame(data["inGame"]);
-      setStatusMessage("Waiting for another player...");
+      setStatusMessage("Veuillez patienter, un adversaire va se connecter...");
     };
     const onGameStart = (data) => {
       setInQueue(data["inQueue"]);
       setInGame(data["inGame"]);
       setIdOpponent(data["idOpponent"]);
-      setStatusMessage("Game found !");
-      setShowGameFound(true);
-
-      if (gameFoundTimeoutRef.current) {
-        clearTimeout(gameFoundTimeoutRef.current);
-      }
-
-      gameFoundTimeoutRef.current = setTimeout(() => {
-        setShowGameFound(false);
-        gameFoundTimeoutRef.current = null;
-      }, GAME_FOUND_SPLASH_DURATION_MS);
+      setStatusMessage("Adversaire trouve !");
     };
     const handleOpponentLeft = () => { if (onOpponentLeft) onOpponentLeft(); };
     const handleGameEnd = (data) => {
       setInQueue(false); setInGame(false); setIdOpponent(null);
-      setStatusMessage("Game ended.");
+      setStatusMessage("Partie terminee.");
       if (onGameEnd) onGameEnd(data);
     };
 
@@ -230,26 +191,25 @@ export default function OnlineGameController({ onOpponentLeft, onGameEnd }) {
     socket.on("game.opponent.left",  handleOpponentLeft);
     socket.on("game.end",            handleGameEnd);
 
-    socket.emit("queue.join");
-    setInQueue(false); setInGame(false);
+    socket.emit(joinEvent);
+    // Show waiting state immediately in online mode while server confirms queue status.
+    setInQueue(!hideWaitingUi && joinEvent === "queue.join");
+    setInGame(false);
+    setStatusMessage("Veuillez patienter, un adversaire va se connecter...");
 
     return () => {
-      if (gameFoundTimeoutRef.current) {
-        clearTimeout(gameFoundTimeoutRef.current);
-      }
-
       socket.off("queue.added",        onQueueAdded);
       socket.off("game.start",         onGameStart);
       socket.off("game.opponent.left", handleOpponentLeft);
       socket.off("game.end",           handleGameEnd);
     };
-  }, [socket, onOpponentLeft, onGameEnd]);
+  }, [socket, onOpponentLeft, onGameEnd, joinEvent, waitingStatusMessage, hideWaitingUi, displayGameFoundSplash]);
 
   return (
     <View style={styles.container}>
 
-      {/* ── Connexion initiale ── */}
-      {!inQueue && !inGame && (
+      {/* ── Etat courant (connexion / attente) ── */}
+      {!inGame && (
         <View style={styles.statusChip}>
           <Ionicons name="sync-outline" size={13} color={C.textMuted} style={{ marginRight: 6 }} />
           <Text style={styles.statusChipText}>{statusMessage}</Text>
@@ -257,16 +217,13 @@ export default function OnlineGameController({ onOpponentLeft, onGameEnd }) {
       )}
 
       {/* ── File d'attente ── */}
-      {inQueue && !inGame && <WaitingView />}
+      {!hideWaitingUi && inQueue && !inGame && <WaitingView />}
 
-      {/* ── Plateau de jeu ── */}
+      {/* ── Partie trouvee ── */}
       {inGame && (
         <View style={styles.boardWrapper}>
+          {displayGameFoundSplash && <GameFoundView idOpponent={idOpponent} />}
           <Board />
-
-          {showGameFound && (
-            <GameFoundSplash idOpponent={idOpponent} />
-          )}
         </View>
       )}
 
@@ -389,34 +346,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  // ── Splash adversaire trouvé ──────────────────────────────────────────────────
-  splashOverlay: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
+  // ── Partie trouvee ─────────────────────────────────────────────────────
+  gameFoundWrapper: {
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(26,61,34,0.94)",
+    gap: 14,
+    marginBottom: 16,
+    width: "100%",
+    paddingHorizontal: 16,
   },
-  splashCard: {
-    alignItems: "center",
-    gap: 18,
-    paddingVertical: 36,
-    paddingHorizontal: 28,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: C.gold,
-    backgroundColor: "rgba(26,61,34,0.97)",
-    width: "85%",
-    shadowColor: C.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 24,
-    elevation: 16,
-  },
-  splashBanner: {
+  gameFoundBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -426,17 +364,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.gold,
   },
-  splashBannerText: {
+  gameFoundBannerText: {
     color: C.goldLight,
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "900",
     letterSpacing: 0.4,
-  },
-  splashCountdown: {
-    color: C.textMuted,
-    fontSize: 13,
-    fontWeight: "600",
-    marginTop: 4,
   },
 
   // ── VS row ────────────────────────────────────────────────────────────────
@@ -485,14 +417,14 @@ const styles = StyleSheet.create({
 OnlineGameController.propTypes = {
   onOpponentLeft: PropTypes.func,
   onGameEnd:      PropTypes.func,
+  joinEvent:      PropTypes.string,
+  waitingStatusMessage: PropTypes.string,
+  hideWaitingUi: PropTypes.bool,
+  displayGameFoundSplash: PropTypes.bool,
 };
-OnlineGameController.defaultProps = {
-  onOpponentLeft: null,
-  onGameEnd:      null,
-};
-GameFoundSplash.propTypes = {
+GameFoundView.propTypes = {
   idOpponent: PropTypes.string,
 };
-GameFoundSplash.defaultProps = {
+GameFoundView.defaultProps = {
   idOpponent: "???",
 };

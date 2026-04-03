@@ -166,6 +166,12 @@ const GameService = {
                     displayPlayerDeck: gameState.currentTurn === playerKey,
                     displayOpponentDeck: gameState.currentTurn !== playerKey,
                     displayRollButton: gameState.deck.rollsCounter <= gameState.deck.rollsMaximum,
+                    canDeclareDefi:
+                        gameState.currentTurn === playerKey
+                        && gameState.deck.rollsCounter === 2
+                        && !gameState.choices.isDefi
+                        && !gameState.choices.idSelectedChoice,
+                    isDefiActive: gameState.choices.isDefi,
                     rollsCounter: gameState.deck.rollsCounter,
                     rollsMaximum: gameState.deck.rollsMaximum,
                     dices: gameState.deck.dices
@@ -318,18 +324,20 @@ const GameService = {
                     (combination.id === 'carre' && hasFourOfAKind) ||
                     (combination.id === 'yam' && hasFiveOfAKind) ||
                     (combination.id === 'suite' && hasStraight) ||
-                    (combination.id === 'moinshuit' && isLessThanEqual8) ||
-                    (combination.id === 'defi' && isDefi)
+                    (combination.id === 'moinshuit' && isLessThanEqual8)
                 ) {
                     availableCombinations.push(combination);
                 }
             });
 
+            const hasNonBrelanCombination = availableCombinations.some((combination) => !combination.id.includes('brelan'));
 
-            const notOnlyBrelan = availableCombinations.some(combination => !combination.id.includes('brelan'));
-
-            if (isSec && availableCombinations.length > 0 && notOnlyBrelan) {
+            if (isSec && availableCombinations.length > 0 && hasNonBrelanCombination) {
                 availableCombinations.push(allCombinations.find(combination => combination.id === 'sec'));
+            }
+
+            if (isDefi && hasNonBrelanCombination) {
+                availableCombinations.push(allCombinations.find(combination => combination.id === 'defi'));
             }
 
             return availableCombinations;

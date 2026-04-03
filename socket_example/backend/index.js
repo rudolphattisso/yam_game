@@ -256,6 +256,17 @@ const runBotTurn = (gameIndex) => {
 
   const gameState = game.gameState;
 
+  if (gameState.deck.rollsCounter === 2 && !gameState.choices.isDefi) {
+    const hasNonBrelanOnFirstRoll = gameState.choices.availableChoices
+      .some((choice) => !choice.id.includes('brelan') && choice.id !== 'sec' && choice.id !== 'defi');
+
+    if (!hasNonBrelanOnFirstRoll) {
+      gameState.choices.isDefi = true;
+      updateClientsViewDecks(game);
+      updateClientsViewChoices(game);
+    }
+  }
+
   if (gameState.deck.rollsCounter <= gameState.deck.rollsMaximum) {
     gameState.deck.dices = GameService.dices.roll(gameState.deck.dices);
     gameState.deck.rollsCounter += 1;
@@ -265,7 +276,7 @@ const runBotTurn = (gameIndex) => {
       gameState.timer = 0;
     }
 
-    const isDefi = false;
+    const isDefi = gameState.choices.isDefi;
     const isSec = gameState.deck.rollsCounter === 2;
     gameState.choices.availableChoices = GameService.choices.findCombinations(gameState.deck.dices, isDefi, isSec);
 
@@ -564,7 +575,7 @@ io.on('connection', socket => {
 
       // combinations management
       const dices = games[gameIndex].gameState.deck.dices;
-      const isDefi = false;
+      const isDefi = games[gameIndex].gameState.choices.isDefi;
       const isSec = games[gameIndex].gameState.deck.rollsCounter === 2;
 
       const combinations = GameService.choices.findCombinations(dices, isDefi, isSec);
@@ -584,7 +595,7 @@ io.on('connection', socket => {
 
       // combinations management
       const dices = games[gameIndex].gameState.deck.dices;
-      const isDefi = false;
+      const isDefi = games[gameIndex].gameState.choices.isDefi;
       const isSec = games[gameIndex].gameState.deck.rollsCounter === 2;
 
       const combinations = GameService.choices.findCombinations(dices, isDefi, isSec);
@@ -628,6 +639,31 @@ io.on('connection', socket => {
     games[gameIndex].gameState.deck.dices[indexDice].locked = !games[gameIndex].gameState.deck.dices[indexDice].locked;
 
     updateClientsViewDecks(games[gameIndex]);
+  });
+
+  socket.on('game.defi.activate', () => {
+    const gameIndex = GameService.utils.findGameIndexBySocketId(games, socket.id);
+    if (gameIndex === -1) {
+      return;
+    }
+
+    const game = games[gameIndex];
+
+    if (game.gameState.currentTurn !== getPlayerKeyBySocketId(game, socket.id)) {
+      return;
+    }
+
+    if (game.gameState.deck.rollsCounter !== 2) {
+      return;
+    }
+
+    if (game.gameState.choices.idSelectedChoice || game.gameState.choices.isDefi) {
+      return;
+    }
+
+    game.gameState.choices.isDefi = true;
+    updateClientsViewDecks(game);
+    updateClientsViewChoices(game);
   });
 
   socket.on('game.choices.selected', (data) => {
@@ -717,7 +753,7 @@ io.on('connection', socket => {
 
 app.get('/', (req, res) => res.sendFile('index.html'));
 
-const PORT = Number(process.env.PORT || process.env.BACKEND_PORT_DOCKER || process.env.BACKEND_PORT || 3000);
+const PORT = Number(process.env.BACKEND_PORT || process.env.PORT || 3000);
 
 const startServer = async () => {
   try {

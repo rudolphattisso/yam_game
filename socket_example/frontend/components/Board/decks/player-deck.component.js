@@ -12,6 +12,8 @@ const PlayerDeck = () => {
   const [displayPlayerDeck, setDisplayPlayerDeck] = useState(false);
   const [dices, setDices] = useState(new Array(5).fill(false));
   const [displayRollButton, setDisplayRollButton] = useState(false);
+  const [canDeclareDefi, setCanDeclareDefi] = useState(false);
+  const [isDefiActive, setIsDefiActive] = useState(false);
   const [rollsCounter, setRollsCounter] = useState(0);
   const [rollsMaximum, setRollsMaximum] = useState(3);
 
@@ -21,6 +23,8 @@ const PlayerDeck = () => {
       setDisplayPlayerDeck(data['displayPlayerDeck']);
       if (data['displayPlayerDeck']) {
         setDisplayRollButton(data['displayRollButton']);
+        setCanDeclareDefi(Boolean(data['canDeclareDefi']));
+        setIsDefiActive(Boolean(data['isDefiActive']));
         setRollsCounter(data['rollsCounter']);
         setRollsMaximum(data['rollsMaximum']);
         setDices(data['dices']);
@@ -47,6 +51,12 @@ const PlayerDeck = () => {
     }
   };
 
+  const activateDefi = () => {
+    if (canDeclareDefi && !isDefiActive) {
+      socket.emit("game.defi.activate");
+    }
+  };
+
   return (
 
     <View style={styles.deckPlayerContainer}>
@@ -60,6 +70,22 @@ const PlayerDeck = () => {
                 Lancer {rollsCounter} / {rollsMaximum}
               </Text>
             </View>
+          )}
+
+          {displayRollButton && (
+            <TouchableOpacity
+              style={[
+                styles.defiButton,
+                !canDeclareDefi && !isDefiActive && styles.defiButtonDisabled,
+                isDefiActive && styles.defiButtonActive,
+              ]}
+              onPress={activateDefi}
+              disabled={!canDeclareDefi || isDefiActive}
+            >
+              <Text style={styles.defiButtonText}>
+                {isDefiActive ? "Defi active" : "Activer Defi"}
+              </Text>
+            </TouchableOpacity>
           )}
 
           <View style={styles.diceContainer}>
@@ -144,6 +170,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#FFF7E6",
     fontWeight: "900",
+  },
+  defiButton: {
+    marginBottom: 10,
+    width: "42%",
+    paddingVertical: 10,
+    borderRadius: 999,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#7A1111",
+    borderWidth: 1,
+    borderColor: "#D4AF37",
+  },
+  defiButtonDisabled: {
+    opacity: 0.45,
+  },
+  defiButtonActive: {
+    backgroundColor: "#2E7D32",
+  },
+  defiButtonText: {
+    color: "#FFF7E6",
+    fontSize: 12,
+    fontWeight: "800",
   },
 });
 

@@ -18,26 +18,6 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
-    image: node:20-alpine
-    container_name: yam_backend
-    working_dir: /app
-    command: sh -c "npm install && npm start"
-    restart: unless-stopped
-    environment:
-      NODE_ENV: ${NODE_ENV}
-      PORT: 3000
-      DATABASE_URL: ${DATABASE_URL_DOCKER}
-      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
-    ports:
-      - "${BACKEND_PORT_DOCKER}:3000"
-    volumes:
-      - ./backend:/app
-    depends_on:
-      postgres:
-        condition: service_healthy
-
   pgadmin:
     image: dpage/pgadmin4:8
     container_name: yam_pgadmin

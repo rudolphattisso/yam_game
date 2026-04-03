@@ -32,13 +32,26 @@ export default function OnlineGameScreen({ navigation }) {
   const handleGameEnd = (data) => {
     let winnerLabel = "Partie terminée";
     if (data?.winner === "draw") {
-      winnerLabel = "Match nul";
-    } else if (data?.winner === "player:1" || data?.winner === "player:2") {
-      const isCurrentPlayerWinner = data.playerScore > data.opponentScore;
-      winnerLabel = isCurrentPlayerWinner ? "Victoire ! 🏆" : "Défaite 😤";
+      winnerLabel = "Match nul 🤝";
+    } else {
+      winnerLabel = data?.isWinner ? "Victoire ! 🏆" : "Défaite 😤";
     }
 
-    const message = `${winnerLabel}\nTon score : ${data?.playerScore ?? 0}\nScore adverse : ${data?.opponentScore ?? 0}`;
+    const reasonLabel =
+      data?.reason === "five-aligned"
+        ? "5 pions alignés !"
+        : data?.reason === "no-pawns-left"
+        ? "Plus de pions disponibles"
+        : "";
+
+    const message = [
+      winnerLabel,
+      reasonLabel,
+      `Ton score : ${data?.playerScore ?? 0}`,
+      `Score adverse : ${data?.opponentScore ?? 0}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     if (Platform.OS === "web") {
       globalThis.alert(message);
