@@ -10,6 +10,7 @@ import VsBotGameScreen from './screens/vs-bot-game.screen';
 import { SocketContext, socket } from './contexts/socket.context';
 import StartScreen from './screens/start.screen';
 import LoginScreen from './screens/login.screen';
+import HistoryScreen from './screens/history.screen';
 import { buildClientSessionId, loadAuthSession } from './utils/auth-session.storage';
 
 const Stack = createStackNavigator();
@@ -56,6 +57,7 @@ function App() {
           <Stack.Screen name="StartScreen" component={StartScreen} />
           <Stack.Screen name="LoginScreen" component={LoginScreen} options={{ title: 'Connexion / inscription' }} />
           <Stack.Screen name="HomeScreen" component={HomeScreen} initialParams={initialHomeParams} />
+          <Stack.Screen name="HistoryScreen" component={HistoryScreen} options={{ title: 'Historique' }} />
           <Stack.Screen name="OnlineGameScreen" component={OnlineGameScreen} />
           <Stack.Screen name="VsBotGameScreen" component={VsBotGameScreen} />
         </Stack.Navigator>

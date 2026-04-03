@@ -11,10 +11,12 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL
 export default function HomeScreen({ navigation, route }) {
   const [isOnlineHovered, setIsOnlineHovered] = useState(false);
   const [isBotHovered, setIsBotHovered] = useState(false);
+  const [isHistoryHovered, setIsHistoryHovered] = useState(false);
   const [isLogoutHovered, setIsLogoutHovered] = useState(false);
   const clientSessionIdRef = useRef(route?.params?.clientSessionId || buildClientSessionId());
   const userMode = route?.params?.userMode;
   const displayName = route?.params?.displayName;
+  const user = route?.params?.user;
   const refreshToken = route?.params?.refreshToken;
   const isConnected = route?.params?.isAuthenticated === true || userMode === "connected" || Boolean(refreshToken);
   const modeLabel = isConnected ? "Connecté" : "Invité";
@@ -88,6 +90,7 @@ export default function HomeScreen({ navigation, route }) {
               isAuthenticated: isConnected,
               userMode: isConnected ? 'connected' : 'guest',
               displayName,
+              user,
               refreshToken,
               clientSessionId: clientSessionIdRef.current,
             })}
@@ -123,6 +126,28 @@ export default function HomeScreen({ navigation, route }) {
               <Text style={styles.buttonText}>DÉFI BOT</Text>
             </LinearGradient>
           </Pressable>
+
+          {isConnected && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                isHistoryHovered && styles.buttonHovered,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={() => navigation.navigate('HistoryScreen')}
+              onHoverIn={() => setIsHistoryHovered(true)}
+              onHoverOut={() => setIsHistoryHovered(false)}
+            >
+              <LinearGradient
+                colors={isHistoryHovered ? ['#4C1D95', '#6D28D9'] : ['#312E81', '#4338CA']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.buttonGradient}
+              >
+                <Text style={styles.buttonText}>HISTORIQUE DES PARTIES</Text>
+              </LinearGradient>
+            </Pressable>
+          )}
         </View>
 
         {!isConnected && (

@@ -12,10 +12,12 @@ export default function OnlineGameScreen({ navigation, route }) {
   const socket = useContext(SocketContext);
   const playerName = route?.params?.playerName || route?.params?.displayName || 'Joueur';
   const isAuthenticated = route?.params?.isAuthenticated === true;
+  const userId = route?.params?.user?.id;
   const clientSessionId = useRef(route?.params?.clientSessionId || `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`).current;
   const homeRouteParams = {
     userMode: route?.params?.userMode || (isAuthenticated ? 'connected' : 'guest'),
     displayName: route?.params?.displayName || (isAuthenticated ? playerName : undefined),
+    user: route?.params?.user,
     refreshToken: route?.params?.refreshToken,
     isAuthenticated,
     clientSessionId,
@@ -207,6 +209,7 @@ export default function OnlineGameScreen({ navigation, route }) {
               onGameEnd={handleGameEnd}
               localPlayerName={playerName}
               localPlayerIsAuthenticated={isAuthenticated}
+              localPlayerUserId={isAuthenticated ? userId : null}
               localPlayerSessionId={clientSessionId}
             />
           </View>
@@ -225,6 +228,9 @@ OnlineGameScreen.propTypes = {
     params: PropTypes.shape({
       playerName: PropTypes.string,
       displayName: PropTypes.string,
+      user: PropTypes.shape({
+        id: PropTypes.string,
+      }),
       userMode: PropTypes.string,
       refreshToken: PropTypes.string,
       isAuthenticated: PropTypes.bool,

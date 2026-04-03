@@ -146,6 +146,15 @@ const sanitizeDisplayName = (value, fallback) => {
   return trimmed.slice(0, 32);
 };
 
+const sanitizeUserId = (value) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed || null;
+};
+
 const passTurn = (game) => {
   game.gameState.currentTurn = game.gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
   game.gameState.timer = GameService.timer.getTurnDuration();
@@ -455,12 +464,14 @@ const attachSocketToGamePlayer = (game, playerKey, socket) => {
     game.player1Socket = socket;
     game.player1Name = sanitizeDisplayName(socket.data?.displayName, game.player1Name || `Player-${socket.id.slice(0, 6)}`);
     game.player1Authenticated = socket.data?.isAuthenticated === true;
+    game.player1UserId = game.player1Authenticated ? sanitizeUserId(socket.data?.userId) : null;
     return;
   }
 
   game.player2Socket = socket;
   game.player2Name = sanitizeDisplayName(socket.data?.displayName, game.player2Name || `Player-${socket.id.slice(0, 6)}`);
   game.player2Authenticated = socket.data?.isAuthenticated === true;
+  game.player2UserId = game.player2Authenticated ? sanitizeUserId(socket.data?.userId) : null;
 };
 
 const cleanupGame = (gameIndex) => {
@@ -609,16 +620,34 @@ const persistFinishedGame = async (game, winnerKey, reason) => {
   try {
     const mode = game.isVsBot ? 'bot' : 'online';
     const winnerSlot = winnerKey === 'player:1' ? 1 : winnerKey === 'player:2' ? 2 : null;
+    const player1UserId = game.player1Authenticated === true ? sanitizeUserId(game.player1UserId) : null;
+    const player2UserId = game.player2Authenticated === true ? sanitizeUserId(game.player2UserId) : null;
+    const createdByUserId = player1UserId;
+    const winnerUserId = winnerKey === 'player:1'
+      ? player1UserId
+      : winnerKey === 'player:2'
+        ? player2UserId
+        : null;
+    const player1Label = game.player1Authenticated === true
+      ? sanitizeDisplayName(game.player1Name, 'player1')
+      : (game.isVsBot ? 'human' : 'player1');
+    const player2Label = game.isVsBot
+      ? 'bot'
+      : (game.player2Authenticated === true
+        ? sanitizeDisplayName(game.player2Name, 'player2')
+        : 'player2');
 
     const gameInsert = await query(
       `
-      INSERT INTO games (mode, status, started_at, ended_at, winner_slot, win_reason, metadata)
-      VALUES ($1, 'finished', $2, NOW(), $3, $4, $5::jsonb)
+      INSERT INTO games (mode, status, created_by_user_id, started_at, ended_at, winner_user_id, winner_slot, win_reason, metadata)
+      VALUES ($1, 'finished', $2, $3, NOW(), $4, $5, $6, $7::jsonb)
       RETURNING id
       `,
       [
         mode,
+        createdByUserId,
         game.startedAt || new Date(),
+        winnerUserId,
         winnerSlot,
         reason,
         JSON.stringify({
@@ -632,18 +661,20 @@ const persistFinishedGame = async (game, winnerKey, reason) => {
 
     await query(
       `
-      INSERT INTO game_players (game_id, guest_label, socket_id, player_slot, score, is_winner)
+      INSERT INTO game_players (game_id, user_id, guest_label, socket_id, player_slot, score, is_winner)
       VALUES
-        ($1, $2, $3, 1, $4, $5),
-        ($1, $6, $7, 2, $8, $9)
+        ($1, $2, $3, $4, 1, $5, $6),
+        ($1, $7, $8, $9, 2, $10, $11)
       `,
       [
         persistedGameId,
-        game.isVsBot ? 'human' : 'player1',
+        player1UserId,
+        player1Label,
         game.player1Socket.id,
         game.gameState.player1Score,
         winnerKey === 'player:1',
-        game.isVsBot ? 'bot' : 'player2',
+        player2UserId,
+        player2Label,
         game.player2Socket.id,
         game.gameState.player2Score,
         winnerKey === 'player:2',
@@ -744,11 +775,15 @@ const createGame = (player1Socket, player2Socket, options = {}) => {
   newGame['isVsBot'] = options.isVsBot === true;
   newGame['player1Name'] = sanitizeDisplayName(player1Socket.data?.displayName, `Player-${player1Socket.id.slice(0, 6)}`);
   newGame['player1Authenticated'] = player1Socket.data?.isAuthenticated === true;
+  newGame['player1UserId'] = newGame.player1Authenticated ? sanitizeUserId(player1Socket.data?.userId) : null;
   newGame['player1SessionId'] = player1Socket.data?.sessionId || `socket:${player1Socket.id}`;
   newGame['player2Name'] = newGame.isVsBot
     ? 'BOT'
     : sanitizeDisplayName(player2Socket.data?.displayName, `Player-${player2Socket.id.slice(0, 6)}`);
   newGame['player2Authenticated'] = newGame.isVsBot ? false : player2Socket.data?.isAuthenticated === true;
+  newGame['player2UserId'] = (newGame.isVsBot || newGame.player2Authenticated !== true)
+    ? null
+    : sanitizeUserId(player2Socket.data?.userId);
   newGame['player2SessionId'] = newGame.isVsBot ? `bot:${newGame.idGame}` : (player2Socket.data?.sessionId || `socket:${player2Socket.id}`);
   newGame['isPaused'] = false;
   newGame['disconnectedPlayerKey'] = null;
@@ -813,6 +848,7 @@ io.on('connection', socket => {
   socket.on('queue.join', (payload = {}) => {
     socket.data.displayName = sanitizeDisplayName(payload.playerName, `Player-${socket.id.slice(0, 6)}`);
     socket.data.isAuthenticated = payload.isAuthenticated === true;
+    socket.data.userId = socket.data.isAuthenticated ? sanitizeUserId(payload.userId) : null;
     socket.data.sessionId = payload.sessionId || socket.data.sessionId || `socket:${socket.id}`;
     if (tryResumeGameForSocket(socket)) {
       return;
@@ -824,6 +860,7 @@ io.on('connection', socket => {
   socket.on('queue.bot.join', (payload = {}) => {
     socket.data.displayName = sanitizeDisplayName(payload.playerName, `Player-${socket.id.slice(0, 6)}`);
     socket.data.isAuthenticated = payload.isAuthenticated === true;
+    socket.data.userId = socket.data.isAuthenticated ? sanitizeUserId(payload.userId) : null;
     socket.data.sessionId = payload.sessionId || socket.data.sessionId || `socket:${socket.id}`;
     console.log(`[${socket.id}] new player vs bot`);
     newPlayerVsBot(socket);
@@ -832,6 +869,7 @@ io.on('connection', socket => {
   socket.on('game.resume.join', (payload = {}) => {
     socket.data.displayName = sanitizeDisplayName(payload.playerName, `Player-${socket.id.slice(0, 6)}`);
     socket.data.isAuthenticated = payload.isAuthenticated === true;
+    socket.data.userId = socket.data.isAuthenticated ? sanitizeUserId(payload.userId) : null;
     socket.data.sessionId = payload.sessionId || socket.data.sessionId || `socket:${socket.id}`;
     tryResumeGameForSocket(socket);
   });
@@ -839,6 +877,7 @@ io.on('connection', socket => {
   socket.on('game.resume.confirm', (payload = {}) => {
     socket.data.displayName = sanitizeDisplayName(payload.playerName, `Player-${socket.id.slice(0, 6)}`);
     socket.data.isAuthenticated = payload.isAuthenticated === true;
+    socket.data.userId = socket.data.isAuthenticated ? sanitizeUserId(payload.userId) : null;
     socket.data.sessionId = payload.sessionId || socket.data.sessionId || `socket:${socket.id}`;
     confirmResumeForSocket(socket);
   });

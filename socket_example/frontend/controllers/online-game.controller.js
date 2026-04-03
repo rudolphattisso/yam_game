@@ -173,6 +173,7 @@ export default function OnlineGameController({
   displayGameFoundSplash = false,
   localPlayerName = "Joueur",
   localPlayerIsAuthenticated = false,
+  localPlayerUserId = null,
   localPlayerSessionId = null,
 }) {
   const socket = useContext(SocketContext);
@@ -192,6 +193,7 @@ export default function OnlineGameController({
   const identityPayload = {
     playerName: normalizeDisplayName(localPlayerName, "Joueur"),
     isAuthenticated: localPlayerIsAuthenticated === true,
+    userId: localPlayerIsAuthenticated === true ? (localPlayerUserId || undefined) : undefined,
     sessionId: localPlayerSessionId || undefined,
   };
 
@@ -285,7 +287,7 @@ export default function OnlineGameController({
       socket.off("game.score.view-state", onScoreViewState);
       socket.off('connect', handleSocketConnect);
     };
-  }, [socket, onOpponentLeft, onGameEnd, joinEvent, waitingStatusMessage, hideWaitingUi, displayGameFoundSplash, localPlayerName, localPlayerIsAuthenticated, localPlayerSessionId]);
+  }, [socket, onOpponentLeft, onGameEnd, joinEvent, waitingStatusMessage, hideWaitingUi, displayGameFoundSplash, localPlayerName, localPlayerIsAuthenticated, localPlayerUserId, localPlayerSessionId]);
 
   useEffect(() => {
     if (!isOpponentDisconnected || resumeSecondsLeft <= 0) {
@@ -659,6 +661,7 @@ OnlineGameController.propTypes = {
   displayGameFoundSplash: PropTypes.bool,
   localPlayerName: PropTypes.string,
   localPlayerIsAuthenticated: PropTypes.bool,
+  localPlayerUserId: PropTypes.string,
   localPlayerSessionId: PropTypes.string,
 };
 GameFoundView.propTypes = {
