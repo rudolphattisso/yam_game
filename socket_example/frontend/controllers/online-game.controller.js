@@ -21,7 +21,7 @@ const C = {
 };
 
 // ─── WaitingView ──────────────────────────────────────────────────────────────
-function WaitingView() {
+function WaitingView({ title, subtitle }) {
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
@@ -89,7 +89,7 @@ function WaitingView() {
       </Animated.View>
 
       {/* Titre */}
-      <Text style={styles.waitingTitle}>Recherche d'adversaire</Text>
+      <Text style={styles.waitingTitle}>{title}</Text>
 
       {/* Dots */}
       <View style={styles.dotsRow}>
@@ -99,7 +99,7 @@ function WaitingView() {
       </View>
 
       {/* Sous-label */}
-      <Text style={styles.waitingSubtitle}>En file d'attente...</Text>
+      <Text style={styles.waitingSubtitle}>{subtitle}</Text>
 
       {/* Badges */}
       <View style={styles.badgeRow}>
@@ -173,6 +173,7 @@ export default function OnlineGameController({
   displayGameFoundSplash = false,
   localPlayerName = "Joueur",
   localPlayerIsAuthenticated = false,
+  localPlayerSessionId = null,
 }) {
   const socket = useContext(SocketContext);
 
@@ -184,6 +185,15 @@ export default function OnlineGameController({
   const [opponentName,   setOpponentName]   = useState("Adversaire");
   const [playerScore,    setPlayerScore]    = useState(0);
   const [opponentScore,  setOpponentScore]  = useState(0);
+  const [isOpponentDisconnected, setIsOpponentDisconnected] = useState(false);
+  const [resumeSecondsLeft, setResumeSecondsLeft] = useState(30);
+  const [showResumePrompt, setShowResumePrompt] = useState(false);
+
+  const identityPayload = {
+    playerName: normalizeDisplayName(localPlayerName, "Joueur"),
+    isAuthenticated: localPlayerIsAuthenticated === true,
+    sessionId: localPlayerSessionId || undefined,
+  };
 
   useEffect(() => {
     setPlayerName(normalizeDisplayName(localPlayerName, "Joueur"));
@@ -194,12 +204,15 @@ export default function OnlineGameController({
       const queueState = hideWaitingUi ? false : (data?.inQueue ?? true);
       setInQueue(queueState);
       setInGame(data["inGame"]);
+      setIsOpponentDisconnected(false);
       setStatusMessage("Veuillez patienter, un adversaire va se connecter...");
     };
     const onGameStart = (data) => {
       setInQueue(data["inQueue"]);
       setInGame(data["inGame"]);
       setIdOpponent(data["idOpponent"]);
+      setIsOpponentDisconnected(false);
+      setShowResumePrompt(false);
       setStatusMessage("Adversaire trouve !");
       setPlayerName(normalizeDisplayName(data?.playerName, normalizeDisplayName(localPlayerName, "Joueur")));
       const isOnlineQueue = joinEvent === "queue.join";
@@ -211,8 +224,26 @@ export default function OnlineGameController({
       );
     };
     const handleOpponentLeft = () => { if (onOpponentLeft) onOpponentLeft(); };
+    const handleOpponentDisconnected = (data) => {
+      setIsOpponentDisconnected(true);
+      setInQueue(true);
+      setInGame(false);
+      const timeoutSeconds = Number(data?.timeoutSeconds || 30);
+      setResumeSecondsLeft(timeoutSeconds > 0 ? timeoutSeconds : 30);
+      setStatusMessage("Votre adversaire a ete deconnecte");
+    };
+    const handleResumePrompt = (data) => {
+      const timeoutSeconds = Number(data?.timeoutSeconds || 30);
+      setResumeSecondsLeft(timeoutSeconds > 0 ? timeoutSeconds : 30);
+      setShowResumePrompt(true);
+      setInQueue(true);
+      setInGame(false);
+      setStatusMessage("Reconnexion a confirmer");
+    };
     const handleGameEnd = (data) => {
       setInQueue(false); setInGame(false); setIdOpponent(null);
+      setIsOpponentDisconnected(false);
+      setShowResumePrompt(false);
       setPlayerScore(0);
       setOpponentScore(0);
       setStatusMessage("Partie terminee.");
@@ -226,13 +257,19 @@ export default function OnlineGameController({
     socket.on("queue.added",         onQueueAdded);
     socket.on("game.start",          onGameStart);
     socket.on("game.opponent.left",  handleOpponentLeft);
+    socket.on("game.opponent.disconnected", handleOpponentDisconnected);
+    socket.on("game.resume.prompt", handleResumePrompt);
     socket.on("game.end",            handleGameEnd);
     socket.on("game.score.view-state", onScoreViewState);
 
-    socket.emit(joinEvent, {
-      playerName: normalizeDisplayName(localPlayerName, "Joueur"),
-      isAuthenticated: localPlayerIsAuthenticated === true,
-    });
+    socket.emit('game.resume.join', identityPayload);
+    socket.emit(joinEvent, identityPayload);
+
+    const handleSocketConnect = () => {
+      socket.emit('game.resume.join', identityPayload);
+    };
+
+    socket.on('connect', handleSocketConnect);
     // Show waiting state immediately in online mode while server confirms queue status.
     setInQueue(!hideWaitingUi && joinEvent === "queue.join");
     setInGame(false);
@@ -242,10 +279,42 @@ export default function OnlineGameController({
       socket.off("queue.added",        onQueueAdded);
       socket.off("game.start",         onGameStart);
       socket.off("game.opponent.left", handleOpponentLeft);
+      socket.off("game.opponent.disconnected", handleOpponentDisconnected);
+      socket.off("game.resume.prompt", handleResumePrompt);
       socket.off("game.end",           handleGameEnd);
       socket.off("game.score.view-state", onScoreViewState);
+      socket.off('connect', handleSocketConnect);
     };
-  }, [socket, onOpponentLeft, onGameEnd, joinEvent, waitingStatusMessage, hideWaitingUi, displayGameFoundSplash, localPlayerName, localPlayerIsAuthenticated]);
+  }, [socket, onOpponentLeft, onGameEnd, joinEvent, waitingStatusMessage, hideWaitingUi, displayGameFoundSplash, localPlayerName, localPlayerIsAuthenticated, localPlayerSessionId]);
+
+  useEffect(() => {
+    if (!isOpponentDisconnected || resumeSecondsLeft <= 0) {
+      return undefined;
+    }
+
+    const intervalId = setInterval(() => {
+      setResumeSecondsLeft((previous) => (previous > 0 ? previous - 1 : 0));
+    }, 1000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isOpponentDisconnected, resumeSecondsLeft]);
+
+  const waitingTitle = isOpponentDisconnected ? "Adversaire deconnecte" : "Recherche d'adversaire";
+  const waitingSubtitle = isOpponentDisconnected
+    ? `Reconnexion possible pendant ${resumeSecondsLeft}s...`
+    : "En file d'attente...";
+
+  const handleResumeConfirm = () => {
+    setShowResumePrompt(false);
+    socket.emit('game.resume.confirm', identityPayload);
+  };
+
+  const handleResumeAbort = () => {
+    setShowResumePrompt(false);
+    socket.emit('game.resume.abort', identityPayload);
+  };
   
 
   return (
@@ -260,7 +329,25 @@ export default function OnlineGameController({
       )}
 
       {/* ── File d'attente ── */}
-      {!hideWaitingUi && inQueue && !inGame && <WaitingView />}
+      {!hideWaitingUi && inQueue && !inGame && (
+        <WaitingView title={waitingTitle} subtitle={waitingSubtitle} />
+      )}
+
+      {showResumePrompt && (
+        <View style={styles.resumePromptCard}>
+          <Text style={styles.resumePromptTitle}>Connexion interrompue</Text>
+          <Text style={styles.resumePromptText}>Souhaitez-vous reprendre la partie ?</Text>
+          <Text style={styles.resumePromptText}>Temps restant: {resumeSecondsLeft}s</Text>
+          <View style={styles.resumePromptActions}>
+            <View style={styles.resumePromptButton}>
+              <Text style={styles.resumePromptButtonText} onPress={handleResumeConfirm}>Reprendre</Text>
+            </View>
+            <View style={[styles.resumePromptButton, styles.resumePromptButtonDanger]}>
+              <Text style={styles.resumePromptButtonText} onPress={handleResumeAbort}>Quitter la partie</Text>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* ── Partie trouvee ── */}
       {inGame && (
@@ -513,6 +600,54 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
   },
+  resumePromptCard: {
+    width: "100%",
+    maxWidth: 420,
+    alignSelf: "center",
+    marginBottom: 14,
+    backgroundColor: "rgba(20,20,40,0.95)",
+    borderWidth: 1,
+    borderColor: "rgba(212,175,55,0.4)",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  resumePromptTitle: {
+    color: C.goldLight,
+    fontSize: 16,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+  resumePromptText: {
+    color: C.text,
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  resumePromptActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
+  resumePromptButton: {
+    flex: 1,
+    borderRadius: 10,
+    backgroundColor: "rgba(42,95,53,0.45)",
+    borderWidth: 1,
+    borderColor: "rgba(255,224,130,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+  },
+  resumePromptButtonDanger: {
+    backgroundColor: "rgba(122,17,17,0.45)",
+  },
+  resumePromptButtonText: {
+    color: C.text,
+    fontSize: 13,
+    fontWeight: "800",
+  },
 });
 
 OnlineGameController.propTypes = {
@@ -524,10 +659,19 @@ OnlineGameController.propTypes = {
   displayGameFoundSplash: PropTypes.bool,
   localPlayerName: PropTypes.string,
   localPlayerIsAuthenticated: PropTypes.bool,
+  localPlayerSessionId: PropTypes.string,
 };
 GameFoundView.propTypes = {
   idOpponent: PropTypes.string,
 };
 GameFoundView.defaultProps = {
   idOpponent: "???",
+};
+WaitingView.propTypes = {
+  title: PropTypes.string,
+  subtitle: PropTypes.string,
+};
+WaitingView.defaultProps = {
+  title: "Recherche d'adversaire",
+  subtitle: "En file d'attente...",
 };

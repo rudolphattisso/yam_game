@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { StyleSheet, View, Text, Pressable, TextInput, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
+import { buildClientSessionId, saveAuthSession } from '../utils/auth-session.storage';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL
     || process.env.EXPO_PUBLIC_SOCKET_URL
@@ -21,6 +22,12 @@ export default function LoginScreen({ navigation, route }) {
 
     const resetFormFields = () => {
         setIdentifier('');
+    const handleGuestMode = () => {
+        navigation.navigate('HomeScreen', {
+            userMode: 'guest',
+            clientSessionId: route?.params?.clientSessionId || buildClientSessionId(),
+        });
+    };
         setUsername('');
         setEmail('');
         setPassword('');
@@ -89,14 +96,21 @@ export default function LoginScreen({ navigation, route }) {
                 resetFormFields();
             }
 
-            navigation.navigate('HomeScreen', {
+            const clientSessionId = route?.params?.clientSessionId || buildClientSessionId();
+            const sessionPayload = {
                 userMode: 'connected',
                 authMode: formMode,
+                isAuthenticated: true,
                 displayName: data?.user?.username || data?.user?.email || 'Utilisateur',
                 user: data?.user,
                 accessToken: data?.accessToken,
                 refreshToken: data?.refreshToken,
-            });
+                clientSessionId,
+            };
+
+            await saveAuthSession(sessionPayload);
+
+            navigation.navigate('HomeScreen', sessionPayload);
         } catch (_error) {
             setFormError(`Impossible de joindre l API (${API_BASE_URL})`);
         } finally {
@@ -107,6 +121,13 @@ export default function LoginScreen({ navigation, route }) {
     const handleSwitchMode = (nextMode) => {
         setFormMode(nextMode);
         resetFormFields();
+    };
+
+    const handleGuestMode = () => {
+        navigation.navigate('HomeScreen', {
+            userMode: 'guest',
+            clientSessionId: route?.params?.clientSessionId || buildClientSessionId(),
+        });
     };
 
     return (
@@ -302,6 +323,15 @@ export default function LoginScreen({ navigation, route }) {
                             onPress={() => navigation.goBack()}
                         >
                             <Text style={styles.backButtonText}>← Retour à l'accueil</Text>
+                        </Pressable>
+
+                        <Pressable
+                            style={({ pressed }) => [styles.guestLinkWrapper, pressed && { opacity: 0.7 }]}
+                            onPress={handleGuestMode}
+                        >
+                            <Text style={styles.guestLinkText}>
+                                Continuer sans compte ? <Text style={styles.guestLinkTextStrong}>Mode invite</Text>
+                            </Text>
                         </Pressable>
 
                     </View>
@@ -568,5 +598,19 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         letterSpacing: 0.3,
+    },
+    guestLinkWrapper: {
+        marginTop: 12,
+        alignItems: 'center',
+    },
+    guestLinkText: {
+        color: '#CBB4FF',
+        fontSize: 14,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    guestLinkTextStrong: {
+        color: '#FFFFFF',
+        fontWeight: '800',
     },
 });

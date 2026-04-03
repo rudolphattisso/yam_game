@@ -1,6 +1,6 @@
 // app/screens/online-game.screen.js
 
-import React, { useContext } from "react";
+import React, { useContext, useRef } from "react";
 import PropTypes from "prop-types";
 import { Alert, Platform, StyleSheet, View, Text, Pressable } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -12,11 +12,13 @@ export default function OnlineGameScreen({ navigation, route }) {
   const socket = useContext(SocketContext);
   const playerName = route?.params?.playerName || route?.params?.displayName || 'Joueur';
   const isAuthenticated = route?.params?.isAuthenticated === true;
+  const clientSessionId = useRef(route?.params?.clientSessionId || `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`).current;
   const homeRouteParams = {
     userMode: route?.params?.userMode || (isAuthenticated ? 'connected' : 'guest'),
     displayName: route?.params?.displayName || (isAuthenticated ? playerName : undefined),
     refreshToken: route?.params?.refreshToken,
     isAuthenticated,
+    clientSessionId,
   };
 
   const navigateHome = () => {
@@ -205,6 +207,7 @@ export default function OnlineGameScreen({ navigation, route }) {
               onGameEnd={handleGameEnd}
               localPlayerName={playerName}
               localPlayerIsAuthenticated={isAuthenticated}
+              localPlayerSessionId={clientSessionId}
             />
           </View>
 
@@ -225,6 +228,7 @@ OnlineGameScreen.propTypes = {
       userMode: PropTypes.string,
       refreshToken: PropTypes.string,
       isAuthenticated: PropTypes.bool,
+      clientSessionId: PropTypes.string,
     }),
   }),
 };

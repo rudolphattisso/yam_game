@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { StyleSheet, View, Text, TouchableOpacity, Pressable } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
+import { buildClientSessionId, clearAuthSession } from '../utils/auth-session.storage';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL
   || process.env.EXPO_PUBLIC_SOCKET_URL
@@ -11,6 +12,7 @@ export default function HomeScreen({ navigation, route }) {
   const [isOnlineHovered, setIsOnlineHovered] = useState(false);
   const [isBotHovered, setIsBotHovered] = useState(false);
   const [isLogoutHovered, setIsLogoutHovered] = useState(false);
+  const clientSessionIdRef = useRef(route?.params?.clientSessionId || buildClientSessionId());
   const userMode = route?.params?.userMode;
   const displayName = route?.params?.displayName;
   const refreshToken = route?.params?.refreshToken;
@@ -30,10 +32,16 @@ export default function HomeScreen({ navigation, route }) {
       // On continue la deconnexion locale meme en cas d'echec reseau.
     }
 
+    await clearAuthSession();
+
     navigation.reset({
       index: 0,
       routes: [{ name: 'StartScreen' }],
     });
+  };
+
+  const handleGoToLogin = () => {
+    navigation.navigate('LoginScreen', { initialMode: 'login' });
   };
 
   return (
@@ -61,9 +69,7 @@ export default function HomeScreen({ navigation, route }) {
           <View style={styles.badge}>
             <Text style={styles.badgeText}>🔥 Mode: {modeLabel}</Text>
           </View>
-          <View style={[styles.badge, styles.badgeSpecial]}>
-            <Text style={styles.badgeText}>⚡ Bonus x2 ce soir</Text>
-          </View>
+
         </View>
 
         {displayName && (
@@ -83,6 +89,7 @@ export default function HomeScreen({ navigation, route }) {
               userMode: isConnected ? 'connected' : 'guest',
               displayName,
               refreshToken,
+              clientSessionId: clientSessionIdRef.current,
             })}
             onHoverIn={() => setIsOnlineHovered(true)}
             onHoverOut={() => setIsOnlineHovered(false)}
@@ -117,6 +124,14 @@ export default function HomeScreen({ navigation, route }) {
             </LinearGradient>
           </Pressable>
         </View>
+
+        {!isConnected && (
+          <Pressable onPress={handleGoToLogin} style={styles.loginLinkWrapper}>
+            <Text style={styles.loginLinkText}>
+              Vous avez deja un compte ? <Text style={styles.loginLinkTextStrong}>Se connecter</Text>
+            </Text>
+          </Pressable>
+        )}
 
         {isConnected && (
           <Pressable
@@ -300,6 +315,23 @@ const styles = StyleSheet.create({
 
   buttonContainer: {
     gap: 16,
+  },
+
+  loginLinkWrapper: {
+    marginTop: 18,
+    alignItems: 'center',
+  },
+
+  loginLinkText: {
+    color: '#CBB4FF',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+
+  loginLinkTextStrong: {
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
 
   logoutButton: {

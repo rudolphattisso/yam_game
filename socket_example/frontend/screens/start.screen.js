@@ -65,15 +65,7 @@ export default function StartScreen({ navigation }) {
             Chance · Combos · Défis en direct
           </Text>
 
-          {/* ── Badges ── */}
-          <View style={styles.badgeRow}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>🃏 Mode rapide</Text>
-            </View>
-            <View style={[styles.badge, styles.badgeGold]}>
-              <Text style={styles.badgeText}>⭐ Classement live</Text>
-            </View>
-          </View>
+
 
           {/* ── Séparateur ── */}
           <View style={styles.separator} />

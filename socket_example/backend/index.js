@@ -38,6 +38,7 @@ app.use('/api/games', gamesRouter);
 
 let games = [];
 let queue = [];
+const RESUME_WINDOW_MS = Number(process.env.GAME_RESUME_WINDOW_MS || 30_000);
 
 // ------------------------------------
 // -------- EMITTER METHODS -----------
@@ -95,17 +96,41 @@ const sendCurrentGameStateToPlayer = (game, socket) => {
     return;
   }
 
+  // Emit game.start first so the client transitions to the board view,
+  // then delay the view-state events so board component listeners are
+  // attached before they arrive (React mounts components asynchronously).
   socket.emit('game.start', GameService.send.forPlayer.viewGameState(playerKey, game));
 
-  socket.emit('game.timer', GameService.send.forPlayer.gameTimer(playerKey, game.gameState));
-  socket.emit('game.deck.view-state', GameService.send.forPlayer.deckViewState(playerKey, game.gameState));
-  socket.emit('game.choices.view-state', GameService.send.forPlayer.choicesViewState(playerKey, game.gameState));
-  socket.emit('game.grid.view-state', GameService.send.forPlayer.gridViewState(playerKey, game.gameState));
-  socket.emit('game.score.view-state', GameService.send.forPlayer.scoreViewState(playerKey, game.gameState));
+  setTimeout(() => {
+    socket.emit('game.timer', GameService.send.forPlayer.gameTimer(playerKey, game.gameState));
+    socket.emit('game.deck.view-state', GameService.send.forPlayer.deckViewState(playerKey, game.gameState));
+    socket.emit('game.choices.view-state', GameService.send.forPlayer.choicesViewState(playerKey, game.gameState));
+    socket.emit('game.grid.view-state', GameService.send.forPlayer.gridViewState(playerKey, game.gameState));
+    socket.emit('game.score.view-state', GameService.send.forPlayer.scoreViewState(playerKey, game.gameState));
+  }, 400);
 };
 
 const removeSocketFromQueue = (socketId) => {
   queue = queue.filter((queuedSocket) => queuedSocket.id !== socketId);
+};
+
+const findGameBySessionId = (sessionId) => {
+  if (!sessionId) {
+    return null;
+  }
+
+  const game = games.find((candidate) => (
+    candidate.player1SessionId === sessionId || candidate.player2SessionId === sessionId
+  ));
+
+  if (!game) {
+    return null;
+  }
+
+  return {
+    game,
+    playerKey: game.player1SessionId === sessionId ? 'player:1' : 'player:2',
+  };
 };
 
 const sanitizeDisplayName = (value, fallback) => {
@@ -341,6 +366,10 @@ const endGameBySocketId = (socketId) => {
     clearInterval(game.intervalId);
   }
 
+  if (game.resumeTimeoutId) {
+    clearTimeout(game.resumeTimeoutId);
+  }
+
   const opponentSocket = game.player1Socket.id === socketId ? game.player2Socket : game.player1Socket;
   if (opponentSocket?.connected) {
     opponentSocket.emit('game.opponent.left', {
@@ -351,6 +380,229 @@ const endGameBySocketId = (socketId) => {
   }
 
   games.splice(gameIndex, 1);
+};
+
+const pauseGameBySocketId = (socketId) => {
+  const gameIndex = GameService.utils.findGameIndexBySocketId(games, socketId);
+  if (gameIndex === -1) {
+    return false;
+  }
+
+  const game = games[gameIndex];
+  if (game.isVsBot) {
+    return false;
+  }
+
+  const disconnectedPlayerKey = getPlayerKeyBySocketId(game, socketId);
+  if (!disconnectedPlayerKey) {
+    return false;
+  }
+
+  if (game.isPaused) {
+    return true;
+  }
+
+  game.isPaused = true;
+  game.disconnectedPlayerKey = disconnectedPlayerKey;
+  game.resumeDeadline = Date.now() + RESUME_WINDOW_MS;
+
+  const opponentSocket = disconnectedPlayerKey === 'player:1' ? game.player2Socket : game.player1Socket;
+  if (opponentSocket?.connected) {
+    opponentSocket.emit('game.opponent.disconnected', {
+      inQueue: true,
+      inGame: false,
+      message: 'Votre adversaire a ete deconnecte',
+      timeoutSeconds: Math.floor(RESUME_WINDOW_MS / 1000),
+    });
+  }
+
+  if (game.resumeTimeoutId) {
+    clearTimeout(game.resumeTimeoutId);
+  }
+
+  game.resumeTimeoutId = setTimeout(() => {
+    const currentGameIndex = GameService.utils.findGameIndexById(games, game.idGame);
+    if (currentGameIndex === -1) {
+      return;
+    }
+
+    const currentGame = games[currentGameIndex];
+    if (!currentGame.isPaused || currentGame.disconnectedPlayerKey !== disconnectedPlayerKey) {
+      return;
+    }
+
+    const waitingPlayerSocket = disconnectedPlayerKey === 'player:1' ? currentGame.player2Socket : currentGame.player1Socket;
+    if (waitingPlayerSocket?.connected) {
+      waitingPlayerSocket.emit('game.opponent.left', {
+        inQueue: false,
+        inGame: false,
+        message: 'Opponent disconnected',
+      });
+    }
+
+    if (currentGame.intervalId) {
+      clearInterval(currentGame.intervalId);
+    }
+
+    games.splice(currentGameIndex, 1);
+  }, RESUME_WINDOW_MS);
+
+  return true;
+};
+
+const attachSocketToGamePlayer = (game, playerKey, socket) => {
+  if (playerKey === 'player:1') {
+    game.player1Socket = socket;
+    game.player1Name = sanitizeDisplayName(socket.data?.displayName, game.player1Name || `Player-${socket.id.slice(0, 6)}`);
+    game.player1Authenticated = socket.data?.isAuthenticated === true;
+    return;
+  }
+
+  game.player2Socket = socket;
+  game.player2Name = sanitizeDisplayName(socket.data?.displayName, game.player2Name || `Player-${socket.id.slice(0, 6)}`);
+  game.player2Authenticated = socket.data?.isAuthenticated === true;
+};
+
+const cleanupGame = (gameIndex) => {
+  const game = games[gameIndex];
+  if (!game) {
+    return;
+  }
+
+  if (game.intervalId) {
+    clearInterval(game.intervalId);
+  }
+
+  if (game.resumeTimeoutId) {
+    clearTimeout(game.resumeTimeoutId);
+  }
+
+  games.splice(gameIndex, 1);
+};
+
+const finishGameAfterResumeAbort = (sessionId, requesterSocket) => {
+  const gameMatch = findGameBySessionId(sessionId);
+  if (!gameMatch) {
+    return false;
+  }
+
+  const { game, playerKey } = gameMatch;
+  const gameIndex = GameService.utils.findGameIndexById(games, game.idGame);
+  if (gameIndex === -1) {
+    return false;
+  }
+
+  const opponentSocket = playerKey === 'player:1' ? game.player2Socket : game.player1Socket;
+  if (opponentSocket?.connected) {
+    opponentSocket.emit('game.opponent.left', {
+      inQueue: false,
+      inGame: false,
+      message: 'Opponent disconnected',
+    });
+  }
+
+  if (requesterSocket?.connected) {
+    requesterSocket.emit('game.opponent.left', {
+      inQueue: false,
+      inGame: false,
+      message: 'Opponent disconnected',
+    });
+  }
+
+  cleanupGame(gameIndex);
+  return true;
+};
+
+const confirmResumeForSocket = (socket) => {
+  const gameMatch = findGameBySessionId(socket.data?.sessionId);
+  if (!gameMatch) {
+    return false;
+  }
+
+  const { game, playerKey } = gameMatch;
+  const opponentSocket = playerKey === 'player:1' ? game.player2Socket : game.player1Socket;
+
+  attachSocketToGamePlayer(game, playerKey, socket);
+
+  if (!game.isPaused) {
+    sendCurrentGameStateToPlayer(game, socket);
+    return true;
+  }
+
+  if (game.disconnectedPlayerKey !== playerKey) {
+    sendCurrentGameStateToPlayer(game, socket);
+    return true;
+  }
+
+  if (!opponentSocket?.connected) {
+    socket.emit('game.opponent.disconnected', {
+      inQueue: true,
+      inGame: false,
+      message: 'Votre adversaire a ete deconnecte',
+      timeoutSeconds: Math.max(1, Math.ceil((game.resumeDeadline - Date.now()) / 1000)),
+    });
+    return true;
+  }
+
+  game.isPaused = false;
+  game.disconnectedPlayerKey = null;
+  game.resumeDeadline = null;
+  if (game.resumeTimeoutId) {
+    clearTimeout(game.resumeTimeoutId);
+    game.resumeTimeoutId = null;
+  }
+
+  sendCurrentGameStateToPlayer(game, game.player1Socket);
+  sendCurrentGameStateToPlayer(game, game.player2Socket);
+  return true;
+};
+
+const tryResumeGameForSocket = (socket) => {
+  const gameMatch = findGameBySessionId(socket.data?.sessionId);
+  if (!gameMatch) {
+    return false;
+  }
+
+  const { game, playerKey } = gameMatch;
+
+  const opponentSocket = playerKey === 'player:1' ? game.player2Socket : game.player1Socket;
+
+  if (game.isPaused) {
+    if (game.disconnectedPlayerKey === playerKey && opponentSocket?.connected) {
+      socket.emit('game.resume.prompt', {
+        timeoutSeconds: Math.max(1, Math.ceil((game.resumeDeadline - Date.now()) / 1000)),
+        message: 'Souhaitez-vous reprendre la partie ou l arreter ?',
+      });
+      return true;
+    }
+
+    attachSocketToGamePlayer(game, playerKey, socket);
+
+    if (opponentSocket?.connected) {
+      game.isPaused = false;
+      game.disconnectedPlayerKey = null;
+      game.resumeDeadline = null;
+      if (game.resumeTimeoutId) {
+        clearTimeout(game.resumeTimeoutId);
+        game.resumeTimeoutId = null;
+      }
+
+      sendCurrentGameStateToPlayer(game, game.player1Socket);
+      sendCurrentGameStateToPlayer(game, game.player2Socket);
+      return true;
+    }
+
+    socket.emit('game.opponent.disconnected', {
+      inQueue: true,
+      inGame: false,
+      message: 'Votre adversaire a ete deconnecte',
+      timeoutSeconds: Math.max(1, Math.ceil((game.resumeDeadline - Date.now()) / 1000)),
+    });
+    return true;
+  }
+
+  sendCurrentGameStateToPlayer(game, socket);
+  return true;
 };
 
 const persistFinishedGame = async (game, winnerKey, reason) => {
@@ -411,6 +663,10 @@ const endGameWithResult = (gameIndex, winnerKey, reason) => {
 
   if (game.intervalId) {
     clearInterval(game.intervalId);
+  }
+
+  if (game.resumeTimeoutId) {
+    clearTimeout(game.resumeTimeoutId);
   }
 
   game.player1Socket.emit('game.end', {
@@ -488,10 +744,16 @@ const createGame = (player1Socket, player2Socket, options = {}) => {
   newGame['isVsBot'] = options.isVsBot === true;
   newGame['player1Name'] = sanitizeDisplayName(player1Socket.data?.displayName, `Player-${player1Socket.id.slice(0, 6)}`);
   newGame['player1Authenticated'] = player1Socket.data?.isAuthenticated === true;
+  newGame['player1SessionId'] = player1Socket.data?.sessionId || `socket:${player1Socket.id}`;
   newGame['player2Name'] = newGame.isVsBot
     ? 'BOT'
     : sanitizeDisplayName(player2Socket.data?.displayName, `Player-${player2Socket.id.slice(0, 6)}`);
   newGame['player2Authenticated'] = newGame.isVsBot ? false : player2Socket.data?.isAuthenticated === true;
+  newGame['player2SessionId'] = newGame.isVsBot ? `bot:${newGame.idGame}` : (player2Socket.data?.sessionId || `socket:${player2Socket.id}`);
+  newGame['isPaused'] = false;
+  newGame['disconnectedPlayerKey'] = null;
+  newGame['resumeDeadline'] = null;
+  newGame['resumeTimeoutId'] = null;
 
   games.push(newGame);
 
@@ -515,6 +777,10 @@ const createGame = (player1Socket, player2Socket, options = {}) => {
       return;
     }
 
+    if (game.isPaused) {
+      return;
+    }
+
     if (game.isVsBot && game.gameState.currentTurn === 'player:2') {
       runBotTurn(gameIndex);
       return;
@@ -534,16 +800,6 @@ const createGame = (player1Socket, player2Socket, options = {}) => {
 
   games[gameIndex].intervalId = gameInterval;
 
-  // On prévoit de couper l'horloge
-  // pour le moment uniquement quand le socket se déconnecte
-  player1Socket.on('disconnect', () => {
-    clearInterval(gameInterval);
-  });
-
-  player2Socket.on('disconnect', () => {
-    clearInterval(gameInterval);
-  });
-
 };
 
 // ---------------------------------------
@@ -557,6 +813,10 @@ io.on('connection', socket => {
   socket.on('queue.join', (payload = {}) => {
     socket.data.displayName = sanitizeDisplayName(payload.playerName, `Player-${socket.id.slice(0, 6)}`);
     socket.data.isAuthenticated = payload.isAuthenticated === true;
+    socket.data.sessionId = payload.sessionId || socket.data.sessionId || `socket:${socket.id}`;
+    if (tryResumeGameForSocket(socket)) {
+      return;
+    }
     console.log(`[${socket.id}] new player in queue `);
     newPlayerInQueue(socket);
   });
@@ -564,8 +824,28 @@ io.on('connection', socket => {
   socket.on('queue.bot.join', (payload = {}) => {
     socket.data.displayName = sanitizeDisplayName(payload.playerName, `Player-${socket.id.slice(0, 6)}`);
     socket.data.isAuthenticated = payload.isAuthenticated === true;
+    socket.data.sessionId = payload.sessionId || socket.data.sessionId || `socket:${socket.id}`;
     console.log(`[${socket.id}] new player vs bot`);
     newPlayerVsBot(socket);
+  });
+
+  socket.on('game.resume.join', (payload = {}) => {
+    socket.data.displayName = sanitizeDisplayName(payload.playerName, `Player-${socket.id.slice(0, 6)}`);
+    socket.data.isAuthenticated = payload.isAuthenticated === true;
+    socket.data.sessionId = payload.sessionId || socket.data.sessionId || `socket:${socket.id}`;
+    tryResumeGameForSocket(socket);
+  });
+
+  socket.on('game.resume.confirm', (payload = {}) => {
+    socket.data.displayName = sanitizeDisplayName(payload.playerName, `Player-${socket.id.slice(0, 6)}`);
+    socket.data.isAuthenticated = payload.isAuthenticated === true;
+    socket.data.sessionId = payload.sessionId || socket.data.sessionId || `socket:${socket.id}`;
+    confirmResumeForSocket(socket);
+  });
+
+  socket.on('game.resume.abort', (payload = {}) => {
+    socket.data.sessionId = payload.sessionId || socket.data.sessionId || `socket:${socket.id}`;
+    finishGameAfterResumeAbort(socket.data.sessionId, socket);
   });
 
   socket.on('game.leave', () => {
@@ -765,6 +1045,9 @@ io.on('connection', socket => {
   socket.on('disconnect', reason => {
     console.log(`[${socket.id}] socket disconnected - ${reason}`);
     removeSocketFromQueue(socket.id);
+    if (pauseGameBySocketId(socket.id)) {
+      return;
+    }
     endGameBySocketId(socket.id);
   });
 
