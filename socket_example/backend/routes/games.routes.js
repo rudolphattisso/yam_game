@@ -1,13 +1,20 @@
 const express = require('express');
 const { query } = require('../db/postgres');
 const { validateQuery } = require('../middleware/validate-request');
+const { requireAuth } = require('../middleware/require-auth');
 const { recentGamesQuerySchema } = require('../validators/request-schemas');
 
 const router = express.Router();
 
-router.get('/recent', validateQuery(recentGamesQuerySchema), async (req, res) => {
+router.get('/recent', requireAuth, validateQuery(recentGamesQuerySchema), async (req, res) => {
   try {
     const limit = req.query.limit || 20;
+    const authenticatedUserId = req.auth?.userId;
+
+    if (!authenticatedUserId) {
+      res.status(401).json({ message: 'Utilisateur non authentifie' });
+      return;
+    }
 
     const result = await query(
       `
@@ -25,11 +32,13 @@ router.get('/recent', validateQuery(recentGamesQuerySchema), async (req, res) =>
       FROM games g
       LEFT JOIN game_players p1 ON p1.game_id = g.id AND p1.player_slot = 1
       LEFT JOIN game_players p2 ON p2.game_id = g.id AND p2.player_slot = 2
+      INNER JOIN game_players me ON me.game_id = g.id
       WHERE g.status = 'finished'
+        AND me.user_id = $1
       ORDER BY g.ended_at DESC NULLS LAST, g.created_at DESC
-      LIMIT $1
+      LIMIT $2
       `,
-      [limit],
+      [authenticatedUserId, limit],
     );
 
     res.json({

@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { loadAuthSession } from '../utils/auth-session.storage';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL
   || process.env.EXPO_PUBLIC_SOCKET_URL
@@ -20,19 +21,51 @@ const formatDateTime = (value) => {
   return parsed.toLocaleString('fr-FR');
 };
 
-const buildResultLabel = (game) => {
+const normalizeLabel = (value, fallback) => {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+
+  const trimmed = value.trim();
+  return trimmed || fallback;
+};
+
+const getModeLabel = (value) => {
+  if (value === 'bot') {
+    return 'Vs Bot';
+  }
+
+  return 'En ligne';
+};
+
+const getWinnerLabel = (game) => {
+  const player1 = normalizeLabel(game?.player1_label, 'Joueur 1');
+  const player2 = normalizeLabel(game?.player2_label, 'Joueur 2');
+
   if (game?.player1_is_winner === true) {
-    return 'Victoire joueur 1';
+    return player1;
   }
 
   if (game?.player2_is_winner === true) {
-    return 'Victoire joueur 2';
+    return player2;
   }
 
   return 'Egalite';
 };
 
-export default function HistoryScreen() {
+const getReasonLabel = (value) => {
+  if (value === 'five-aligned') {
+    return '5 pions alignes';
+  }
+
+  if (value === 'no-pawns-left') {
+    return 'Plus de pions disponibles';
+  }
+
+  return normalizeLabel(value, 'Fin normale');
+};
+
+export default function HistoryScreen({ route }) {
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -48,7 +81,19 @@ export default function HistoryScreen() {
 
       setErrorMessage('');
 
-      const response = await fetch(`${API_BASE_URL}/api/games/recent?limit=30`);
+      const storedSession = await loadAuthSession();
+      const token = route?.params?.accessToken || storedSession?.accessToken;
+
+      if (!token) {
+        setErrorMessage('Vous devez etre connecte pour consulter votre historique.');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/games/recent?limit=30`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       const data = await response.json();
 
       if (!response.ok) {
@@ -63,7 +108,7 @@ export default function HistoryScreen() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [route?.params?.accessToken]);
 
   useFocusEffect(
     useCallback(() => {
@@ -82,18 +127,44 @@ export default function HistoryScreen() {
   const renderItem = ({ item }) => (
     <View style={styles.itemCard}>
       <View style={styles.itemTopRow}>
-        <Text style={styles.itemMode}>{String(item?.mode || 'online').toUpperCase()}</Text>
+        <Text style={styles.itemMode}>Partie {getModeLabel(item?.mode)}</Text>
         <Text style={styles.itemDate}>{formatDateTime(item?.ended_at)}</Text>
       </View>
 
-      <Text style={styles.itemResult}>{buildResultLabel(item)}</Text>
+      <Text style={styles.itemResult}>Gagnant: {getWinnerLabel(item)}</Text>
 
-      <View style={styles.itemPlayersRow}>
-        <Text style={styles.itemPlayerLabel}>J1: {item?.player1_label || 'player1'} ({item?.player1_score ?? 0})</Text>
-        <Text style={styles.itemPlayerLabel}>J2: {item?.player2_label || 'player2'} ({item?.player2_score ?? 0})</Text>
+      <View style={styles.infoBlock}>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoKey}>Type</Text>
+          <Text style={styles.infoValue}>{getModeLabel(item?.mode)}</Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoKey}>Date</Text>
+          <Text style={styles.infoValue}>{formatDateTime(item?.ended_at)}</Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoKey}>Joueur 1</Text>
+          <Text style={styles.infoValue}>
+            {normalizeLabel(item?.player1_label, 'Joueur 1')} ({item?.player1_score ?? 0} pts)
+          </Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoKey}>Joueur 2</Text>
+          <Text style={styles.infoValue}>
+            {normalizeLabel(item?.player2_label, 'Joueur 2')} ({item?.player2_score ?? 0} pts)
+          </Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoKey}>Cause de fin</Text>
+          <Text style={styles.infoValue}>{getReasonLabel(item?.win_reason)}</Text>
+        </View>
       </View>
 
-      <Text style={styles.itemReason}>Fin: {item?.win_reason || 'normal'}</Text>
+      <Text style={styles.itemReason}>Score final: {item?.player1_score ?? 0} - {item?.player2_score ?? 0}</Text>
     </View>
   );
 
@@ -216,21 +287,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
-  itemPlayersRow: {
+  infoBlock: {
+    marginTop: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.45)',
+    backgroundColor: 'rgba(30, 41, 59, 0.45)',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    gap: 6,
+  },
+  infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     gap: 10,
-    flexWrap: 'wrap',
   },
-  itemPlayerLabel: {
+  infoKey: {
+    color: '#A5B4FC',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  infoValue: {
     color: '#E2E8F0',
     fontSize: 13,
     fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'right',
   },
   itemReason: {
-    color: '#A5B4FC',
+    color: '#93C5FD',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   emptyText: {
     color: '#C4B5FD',

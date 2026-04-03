@@ -17,6 +17,7 @@ export default function HomeScreen({ navigation, route }) {
   const userMode = route?.params?.userMode;
   const displayName = route?.params?.displayName;
   const user = route?.params?.user;
+  const accessToken = route?.params?.accessToken;
   const refreshToken = route?.params?.refreshToken;
   const isConnected = route?.params?.isAuthenticated === true || userMode === "connected" || Boolean(refreshToken);
   const modeLabel = isConnected ? "Connecté" : "Invité";
@@ -134,7 +135,7 @@ export default function HomeScreen({ navigation, route }) {
                 isHistoryHovered && styles.buttonHovered,
                 pressed && styles.buttonPressed,
               ]}
-              onPress={() => navigation.navigate('HistoryScreen')}
+              onPress={() => navigation.navigate('HistoryScreen', { accessToken })}
               onHoverIn={() => setIsHistoryHovered(true)}
               onHoverOut={() => setIsHistoryHovered(false)}
             >
