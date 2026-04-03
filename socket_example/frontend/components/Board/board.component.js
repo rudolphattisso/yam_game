@@ -16,18 +16,17 @@ import { BOARD_COLORS } from './board-colors';
 // ─────────────────────────────────────────────────────────────
 // LAYOUT: Opponent header — fixed bandeau with name | score + pawns
 // ─────────────────────────────────────────────────────────────
-const OpponentHeader = ({ score, remainingPawns, timerComponent }) => {
+const OpponentHeader = ({ name, remainingPawns, timerComponent }) => {
   return (
     <View style={styles.opponentHeader}>
       <View style={styles.opponentNameSection}>
-        <Text style={styles.opponentLabel}>🃏 Adversaire</Text>
+        <Text style={styles.opponentLabel}>🃏 {name}</Text>
       </View>
       <View style={styles.opponentStatsSection}>
         <View style={styles.timerContainer}>
           {timerComponent}
         </View>
         <View style={styles.statsVertical}>
-          <Text style={styles.scoreText}>⭐ {score}</Text>
           <Text style={styles.pawnsText}>🎯 {remainingPawns}</Text>
         </View>
       </View>
@@ -38,18 +37,17 @@ const OpponentHeader = ({ score, remainingPawns, timerComponent }) => {
 // ─────────────────────────────────────────────────────────────
 // LAYOUT: Player footer — fixed bandeau with name | timer + score + pawns
 // ─────────────────────────────────────────────────────────────
-const PlayerFooter = ({ score, remainingPawns, timerComponent }) => {
+const PlayerFooter = ({ name, remainingPawns, timerComponent }) => {
   return (
     <View style={styles.playerFooter}>
       <View style={styles.playerNameSection}>
-        <Text style={styles.playerLabel}>🎲 Toi</Text>
+        <Text style={styles.playerLabel}>🎲 {name}</Text>
       </View>
       <View style={styles.playerStatsSection}>
         <View style={styles.timerContainer}>
           {timerComponent}
         </View>
         <View style={styles.statsVertical}>
-          <Text style={styles.scoreText}>⭐ {score}</Text>
           <Text style={styles.pawnsText}>🎯 {remainingPawns}</Text>
         </View>
       </View>
@@ -60,7 +58,7 @@ const PlayerFooter = ({ score, remainingPawns, timerComponent }) => {
 // ─────────────────────────────────────────────────────────────
 // LAYOUT: Main Board component
 // ─────────────────────────────────────────────────────────────
-const Board = ({ gameViewState }) => {
+const Board = ({ gameViewState, playerName, opponentName }) => {
   const socket = useContext(SocketContext);
   const { width } = useWindowDimensions();
   const [scores, setScores] = useState({
@@ -92,7 +90,7 @@ const Board = ({ gameViewState }) => {
     <View style={styles.boardContainer}>
       {/* LAYOUT: Opponent header bandeau — fixed height, no overflow */}
       <OpponentHeader
-        score={scores.opponentScore}
+        name={opponentName || 'Adversaire'}
         remainingPawns={scores.opponentRemainingPawns}
         timerComponent={<OpponentTimer />}
       />
@@ -120,7 +118,7 @@ const Board = ({ gameViewState }) => {
 
       {/* LAYOUT: Player footer bandeau — fixed height, no overflow */}
       <PlayerFooter
-        score={scores.playerScore}
+        name={playerName || 'Toi'}
         remainingPawns={scores.playerRemainingPawns}
         timerComponent={<PlayerTimer />}
       />
@@ -189,12 +187,6 @@ const styles = StyleSheet.create({
   statsVertical: {
     alignItems: 'flex-end',
     gap: 2,
-  },
-
-  scoreText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFE082',
   },
 
   pawnsText: {
@@ -321,20 +313,24 @@ const styles = StyleSheet.create({
 
 Board.propTypes = {
   gameViewState: PropTypes.object,
+  playerName: PropTypes.string,
+  opponentName: PropTypes.string,
 };
 
 Board.defaultProps = {
   gameViewState: null,
+  playerName: 'Toi',
+  opponentName: 'Adversaire',
 };
 
 OpponentHeader.propTypes = {
-  score: PropTypes.number.isRequired,
+  name: PropTypes.string.isRequired,
   remainingPawns: PropTypes.number.isRequired,
   timerComponent: PropTypes.element.isRequired,
 };
 
 PlayerFooter.propTypes = {
-  score: PropTypes.number.isRequired,
+  name: PropTypes.string.isRequired,
   remainingPawns: PropTypes.number.isRequired,
   timerComponent: PropTypes.element.isRequired,
 };

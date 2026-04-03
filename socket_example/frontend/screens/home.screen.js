@@ -14,8 +14,8 @@ export default function HomeScreen({ navigation, route }) {
   const userMode = route?.params?.userMode;
   const displayName = route?.params?.displayName;
   const refreshToken = route?.params?.refreshToken;
-  const isConnected = userMode === "connected";
-  const modeLabel = userMode === "connected" ? "Connecté" : "Invité";
+  const isConnected = route?.params?.isAuthenticated === true || userMode === "connected" || Boolean(refreshToken);
+  const modeLabel = isConnected ? "Connecté" : "Invité";
 
   const handleLogout = async () => {
     try {
@@ -79,6 +79,10 @@ export default function HomeScreen({ navigation, route }) {
             ]}
             onPress={() => navigation.navigate("OnlineGameScreen", {
               playerName: displayName || 'Joueur',
+              isAuthenticated: isConnected,
+              userMode: isConnected ? 'connected' : 'guest',
+              displayName,
+              refreshToken,
             })}
             onHoverIn={() => setIsOnlineHovered(true)}
             onHoverOut={() => setIsOnlineHovered(false)}

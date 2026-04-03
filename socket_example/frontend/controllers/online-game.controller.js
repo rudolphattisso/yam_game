@@ -172,6 +172,7 @@ export default function OnlineGameController({
   hideWaitingUi = false,
   displayGameFoundSplash = false,
   localPlayerName = "Joueur",
+  localPlayerIsAuthenticated = false,
 }) {
   const socket = useContext(SocketContext);
 
@@ -181,6 +182,8 @@ export default function OnlineGameController({
   const [statusMessage,  setStatusMessage]  = useState(waitingStatusMessage);
   const [playerName,     setPlayerName]     = useState(normalizeDisplayName(localPlayerName, "Joueur"));
   const [opponentName,   setOpponentName]   = useState("Adversaire");
+  const [playerScore,    setPlayerScore]    = useState(0);
+  const [opponentScore,  setOpponentScore]  = useState(0);
 
   useEffect(() => {
     setPlayerName(normalizeDisplayName(localPlayerName, "Joueur"));
@@ -199,22 +202,36 @@ export default function OnlineGameController({
       setIdOpponent(data["idOpponent"]);
       setStatusMessage("Adversaire trouve !");
       setPlayerName(normalizeDisplayName(data?.playerName, normalizeDisplayName(localPlayerName, "Joueur")));
-      setOpponentName(normalizeDisplayName(data?.opponentName, "Adversaire"));
+      const isOnlineQueue = joinEvent === "queue.join";
+      const shouldShowOpponentPseudo = !isOnlineQueue || data?.opponentAuthenticated === true;
+      setOpponentName(
+        shouldShowOpponentPseudo
+          ? normalizeDisplayName(data?.opponentName, "Adversaire")
+          : "Adversaire",
+      );
     };
     const handleOpponentLeft = () => { if (onOpponentLeft) onOpponentLeft(); };
     const handleGameEnd = (data) => {
       setInQueue(false); setInGame(false); setIdOpponent(null);
+      setPlayerScore(0);
+      setOpponentScore(0);
       setStatusMessage("Partie terminee.");
       if (onGameEnd) onGameEnd(data);
+    };
+    const onScoreViewState = (data) => {
+      setPlayerScore(data?.playerScore ?? 0);
+      setOpponentScore(data?.opponentScore ?? 0);
     };
 
     socket.on("queue.added",         onQueueAdded);
     socket.on("game.start",          onGameStart);
     socket.on("game.opponent.left",  handleOpponentLeft);
     socket.on("game.end",            handleGameEnd);
+    socket.on("game.score.view-state", onScoreViewState);
 
     socket.emit(joinEvent, {
       playerName: normalizeDisplayName(localPlayerName, "Joueur"),
+      isAuthenticated: localPlayerIsAuthenticated === true,
     });
     // Show waiting state immediately in online mode while server confirms queue status.
     setInQueue(!hideWaitingUi && joinEvent === "queue.join");
@@ -226,8 +243,10 @@ export default function OnlineGameController({
       socket.off("game.start",         onGameStart);
       socket.off("game.opponent.left", handleOpponentLeft);
       socket.off("game.end",           handleGameEnd);
+      socket.off("game.score.view-state", onScoreViewState);
     };
-  }, [socket, onOpponentLeft, onGameEnd, joinEvent, waitingStatusMessage, hideWaitingUi, displayGameFoundSplash]);
+  }, [socket, onOpponentLeft, onGameEnd, joinEvent, waitingStatusMessage, hideWaitingUi, displayGameFoundSplash, localPlayerName, localPlayerIsAuthenticated]);
+  
 
   return (
     <View style={styles.container}>
@@ -250,17 +269,17 @@ export default function OnlineGameController({
 
           <View style={styles.matchupNotice}>
             <View style={styles.matchupPlayerTag}>
-              <Text style={styles.matchupPlayerLabel}>Vous</Text>
               <Text style={styles.matchupPlayerName}>{playerName}</Text>
+              <Text style={styles.matchupPlayerScore}>Score: {playerScore}</Text>
             </View>
             <Text style={styles.matchupVs}>VS</Text>
             <View style={[styles.matchupPlayerTag, styles.matchupOpponentTag]}>
-              <Text style={styles.matchupPlayerLabel}>Adversaire</Text>
               <Text style={[styles.matchupPlayerName, styles.matchupOpponentName]}>{opponentName}</Text>
+              <Text style={[styles.matchupPlayerScore, styles.matchupOpponentScore]}>Score: {opponentScore}</Text>
             </View>
           </View>
 
-          <Board />
+          <Board playerName={playerName} opponentName={opponentName} />
         </View>
       )}
 
@@ -472,18 +491,21 @@ const styles = StyleSheet.create({
   matchupOpponentTag: {
     backgroundColor: "rgba(42,95,53,0.2)",
   },
-  matchupPlayerLabel: {
-    color: C.textMuted,
-    fontSize: 11,
-    fontWeight: "700",
-  },
   matchupPlayerName: {
     color: C.text,
     fontSize: 14,
     fontWeight: "900",
-    marginTop: 2,
+  },
+  matchupPlayerScore: {
+    color: C.gold,
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 3,
   },
   matchupOpponentName: {
+    color: C.goldLight,
+  },
+  matchupOpponentScore: {
     color: C.goldLight,
   },
   matchupVs: {
@@ -501,6 +523,7 @@ OnlineGameController.propTypes = {
   hideWaitingUi: PropTypes.bool,
   displayGameFoundSplash: PropTypes.bool,
   localPlayerName: PropTypes.string,
+  localPlayerIsAuthenticated: PropTypes.bool,
 };
 GameFoundView.propTypes = {
   idOpponent: PropTypes.string,

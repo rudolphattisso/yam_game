@@ -9,7 +9,7 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  identifier: trimmedString.min(3).max(120),
+  identifier: trimmedString.min(1).max(120),
   password: z.string().min(1).max(200),
 });
 

@@ -80,7 +80,8 @@ export default function LoginScreen({ navigation, route }) {
             const data = await response.json();
 
             if (!response.ok) {
-                setFormError(data?.message || 'Erreur de connexion au serveur');
+                const detail = data?.details?.[0]?.message;
+                setFormError(detail || data?.message || 'Erreur de connexion au serveur');
                 return;
             }
 

@@ -487,9 +487,11 @@ const createGame = (player1Socket, player2Socket, options = {}) => {
   newGame['player2Socket'] = player2Socket;
   newGame['isVsBot'] = options.isVsBot === true;
   newGame['player1Name'] = sanitizeDisplayName(player1Socket.data?.displayName, `Player-${player1Socket.id.slice(0, 6)}`);
+  newGame['player1Authenticated'] = player1Socket.data?.isAuthenticated === true;
   newGame['player2Name'] = newGame.isVsBot
     ? 'BOT'
     : sanitizeDisplayName(player2Socket.data?.displayName, `Player-${player2Socket.id.slice(0, 6)}`);
+  newGame['player2Authenticated'] = newGame.isVsBot ? false : player2Socket.data?.isAuthenticated === true;
 
   games.push(newGame);
 
@@ -554,12 +556,14 @@ io.on('connection', socket => {
 
   socket.on('queue.join', (payload = {}) => {
     socket.data.displayName = sanitizeDisplayName(payload.playerName, `Player-${socket.id.slice(0, 6)}`);
+    socket.data.isAuthenticated = payload.isAuthenticated === true;
     console.log(`[${socket.id}] new player in queue `);
     newPlayerInQueue(socket);
   });
 
   socket.on('queue.bot.join', (payload = {}) => {
     socket.data.displayName = sanitizeDisplayName(payload.playerName, `Player-${socket.id.slice(0, 6)}`);
+    socket.data.isAuthenticated = payload.isAuthenticated === true;
     console.log(`[${socket.id}] new player vs bot`);
     newPlayerVsBot(socket);
   });

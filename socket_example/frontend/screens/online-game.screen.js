@@ -11,21 +11,32 @@ import OnlineGameController from "../controllers/online-game.controller";
 export default function OnlineGameScreen({ navigation, route }) {
   const socket = useContext(SocketContext);
   const playerName = route?.params?.playerName || route?.params?.displayName || 'Joueur';
+  const isAuthenticated = route?.params?.isAuthenticated === true;
+  const homeRouteParams = {
+    userMode: route?.params?.userMode || (isAuthenticated ? 'connected' : 'guest'),
+    displayName: route?.params?.displayName || (isAuthenticated ? playerName : undefined),
+    refreshToken: route?.params?.refreshToken,
+    isAuthenticated,
+  };
+
+  const navigateHome = () => {
+    navigation.navigate("HomeScreen", homeRouteParams);
+  };
 
   const leaveGame = () => {
     socket.emit("game.leave");
-    navigation.navigate("HomeScreen");
+    navigateHome();
   };
 
   const handleOpponentLeft = () => {
     if (Platform.OS === "web") {
       globalThis.alert("Votre adversaire s'est déconnecté ou a perdu la session.");
-      navigation.navigate("HomeScreen");
+      navigateHome();
     } else {
       Alert.alert(
         "Partie interrompue",
         "Votre adversaire s'est déconnecté ou a perdu la session.",
-        [{ text: "OK", onPress: () => navigation.navigate("HomeScreen") }]
+        [{ text: "OK", onPress: navigateHome }]
       );
     }
   };
@@ -56,12 +67,12 @@ export default function OnlineGameScreen({ navigation, route }) {
 
     if (Platform.OS === "web") {
       globalThis.alert(message);
-      navigation.navigate("HomeScreen");
+      navigateHome();
       return;
     }
 
     Alert.alert("Fin de partie", message, [
-      { text: "OK", onPress: () => navigation.navigate("HomeScreen") },
+      { text: "OK", onPress: navigateHome },
     ]);
   };
 
@@ -116,7 +127,7 @@ export default function OnlineGameScreen({ navigation, route }) {
 
           <Pressable
             style={styles.btnSecondary}
-            onPress={() => navigation.navigate("HomeScreen")}
+            onPress={navigateHome}
             android_ripple={{ color: "rgba(168, 85, 247, 0.2)" }}
           >
             <LinearGradient
@@ -193,6 +204,7 @@ export default function OnlineGameScreen({ navigation, route }) {
               onOpponentLeft={handleOpponentLeft}
               onGameEnd={handleGameEnd}
               localPlayerName={playerName}
+              localPlayerIsAuthenticated={isAuthenticated}
             />
           </View>
 
@@ -210,6 +222,9 @@ OnlineGameScreen.propTypes = {
     params: PropTypes.shape({
       playerName: PropTypes.string,
       displayName: PropTypes.string,
+      userMode: PropTypes.string,
+      refreshToken: PropTypes.string,
+      isAuthenticated: PropTypes.bool,
     }),
   }),
 };

@@ -141,7 +141,15 @@ const GameService = {
                     opponentName:
                         (playerKey === 'player:1')
                             ? game.player2Name
-                            : game.player1Name
+                            : game.player1Name,
+                    playerAuthenticated:
+                        (playerKey === 'player:1')
+                            ? game.player1Authenticated === true
+                            : game.player2Authenticated === true,
+                    opponentAuthenticated:
+                        (playerKey === 'player:1')
+                            ? game.player2Authenticated === true
+                            : game.player1Authenticated === true
                 };
             },
 
