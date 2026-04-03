@@ -1,8 +1,8 @@
 // app/screens/online-game.screen.js
 
-import React, { useContext, useRef } from "react";
+import React, { useContext, useRef, useState } from "react";
 import PropTypes from "prop-types";
-import { Alert, Platform, StyleSheet, View, Text, Pressable } from "react-native";
+import { Alert, Platform, StyleSheet, View, Text, Pressable, Modal, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { SocketContext } from "../contexts/socket.context";
@@ -10,6 +10,7 @@ import OnlineGameController from "../controllers/online-game.controller";
 
 export default function OnlineGameScreen({ navigation, route }) {
   const socket = useContext(SocketContext);
+  const [rulesModalVisible, setRulesModalVisible] = useState(false);
   const playerName = route?.params?.playerName || route?.params?.displayName || 'Joueur';
   const isAuthenticated = route?.params?.isAuthenticated === true;
   const userId = route?.params?.user?.id;
@@ -169,18 +170,32 @@ export default function OnlineGameScreen({ navigation, route }) {
               </View>
             </View>
 
-            {/* Bouton quitter */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.leaveBtn,
-                pressed && { opacity: 0.75 },
-              ]}
-              onPress={confirmLeaveGame}
-              android_ripple={{ color: "rgba(236, 72, 153, 0.3)" }}
-            >
-              <Ionicons name="exit-outline" size={18} color={C.pink} />
-              <Text style={styles.leaveBtnText}>Quitter</Text>
-            </Pressable>
+            <View style={styles.headerRight}>
+              {/* Bouton règles */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.rulesBtn,
+                  pressed && { opacity: 0.75 },
+                ]}
+                onPress={() => setRulesModalVisible(true)}
+                android_ripple={{ color: "rgba(168, 85, 247, 0.3)" }}
+              >
+                <Ionicons name="book-outline" size={18} color={C.primary} />
+              </Pressable>
+
+              {/* Bouton quitter */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.leaveBtn,
+                  pressed && { opacity: 0.75 },
+                ]}
+                onPress={confirmLeaveGame}
+                android_ripple={{ color: "rgba(236, 72, 153, 0.3)" }}
+              >
+                <Ionicons name="exit-outline" size={18} color={C.pink} />
+                <Text style={styles.leaveBtnText}>Quitter</Text>
+              </Pressable>
+            </View>
           </View>
 
           {/* ── Badges ── */}
@@ -216,6 +231,95 @@ export default function OnlineGameScreen({ navigation, route }) {
 
         </View>
       )}
+
+      {/* ── Modal Règles ── */}
+      <Modal
+        visible={rulesModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setRulesModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {/* ── En-tête modal ── */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Règles du Jeu</Text>
+              <Pressable
+                onPress={() => setRulesModalVisible(false)}
+                android_ripple={{ color: "rgba(236, 72, 153, 0.3)" }}
+              >
+                <Ionicons name="close" size={24} color={C.pink} />
+              </Pressable>
+            </View>
+
+            {/* ── Contenu scrollable ── */}
+            <ScrollView style={styles.rulesScrollView} showsVerticalScrollIndicator={true}>
+              {/* Section But du jeu */}
+              <View style={styles.ruleSection}>
+                <Text style={styles.ruleTitle}>🎯 But du jeu</Text>
+                <Text style={styles.ruleText}>
+                  Marquer plus de points que son adversaire, ou réaliser un alignement horizontal, vertical ou en diagonale de cinq pions.
+                </Text>
+              </View>
+
+              {/* Section Déroulement */}
+              <View style={styles.ruleSection}>
+                <Text style={styles.ruleTitle}>🎲 Déroulement du jeu</Text>
+                <Text style={styles.ruleText}>
+                  À votre tour, vous pouvez lancer les dés à trois reprises pour réaliser une combinaison. Après chaque lancer, vous pouvez écarter des dés et relancer les autres.
+                </Text>
+              </View>
+
+              {/* Section Combinaisons */}
+              <View style={styles.ruleSection}>
+                <Text style={styles.ruleTitle}>🃏 Combinaisons possibles</Text>
+                <Text style={styles.ruleBullet}>• <Text style={styles.ruleBulletLabel}>Brelan</Text> : trois dés identiques</Text>
+                <Text style={styles.ruleBullet}>• <Text style={styles.ruleBulletLabel}>Full</Text> : un brelan et une paire</Text>
+                <Text style={styles.ruleBullet}>• <Text style={styles.ruleBulletLabel}>Carré</Text> : quatre dés identiques</Text>
+                <Text style={styles.ruleBullet}>• <Text style={styles.ruleBulletLabel}>Yam</Text> : cinq dés identiques</Text>
+                <Text style={styles.ruleBullet}>• <Text style={styles.ruleBulletLabel}>Suite</Text> : 1-2-3-4-5 ou 2-3-4-5-6</Text>
+                <Text style={styles.ruleBullet}>• <Text style={styles.ruleBulletLabel}>≤8</Text> : somme des dés ≤ 8</Text>
+                <Text style={styles.ruleBullet}>• <Text style={styles.ruleBulletLabel}>Sec</Text> : une combinaison au premier lancer</Text>
+                <Text style={styles.ruleBullet}>• <Text style={styles.ruleBulletLabel}>Défi</Text> : relever un défi avant le 2e lancer</Text>
+              </View>
+
+              {/* Section Placement des pions */}
+              <View style={styles.ruleSection}>
+                <Text style={styles.ruleTitle}>♟️ Placement des pions</Text>
+                <Text style={styles.ruleText}>
+                  Dès qu'une combinaison réussit, vous pouvez placer un pion sur une case libellée correspondant à votre combinaison.
+                </Text>
+              </View>
+
+              {/* Section Yam Predator */}
+              <View style={styles.ruleSection}>
+                <Text style={styles.ruleTitle}>⚔️ Yam Predator</Text>
+                <Text style={styles.ruleText}>
+                  Réaliser un Yam (cinq dés identiques) vous permet de retirer n'importe quel pion adverse au lieu de placer un des vôtres.
+                </Text>
+              </View>
+
+              {/* Section Points */}
+              <View style={styles.ruleSection}>
+                <Text style={styles.ruleTitle}>⭐ Décompte des points</Text>
+                <Text style={styles.ruleBullet}>• <Text style={styles.ruleBulletLabel}>Alignement de 3 pions</Text> : 1 point</Text>
+                <Text style={styles.ruleBullet}>• <Text style={styles.ruleBulletLabel}>Alignement de 4 pions</Text> : 2 points</Text>
+                <Text style={styles.ruleBullet}>• <Text style={styles.ruleBulletLabel}>Alignement de 5 pions</Text> : Victoire instantanée</Text>
+              </View>
+
+              {/* Section Fin de partie */}
+              <View style={styles.ruleSection}>
+                <Text style={styles.ruleTitle}>🏁 Fin de partie</Text>
+                <Text style={styles.ruleText}>
+                  La partie s'achève quand un joueur n'a plus de pions (gagnant : celui avec le plus de points) ou quand un joueur réalise un alignement de cinq pions (victoire instantanée).
+                </Text>
+              </View>
+
+              <View style={styles.rulesFooter} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -389,6 +493,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
   },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   pageTitle: {
     color: C.textPrimary,
     fontSize: 20,
@@ -400,6 +509,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "500",
     letterSpacing: 0.3,
+  },
+
+  // Bouton règles
+  rulesBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: C.primary,
+    backgroundColor: "rgba(168, 85, 247, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,               // touch target ✓
   },
 
   // Bouton quitter
@@ -500,5 +622,80 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "800",
     letterSpacing: 0.5,
+  },
+
+  // ── Modal Règles ──────────────────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 480,
+    maxHeight: "85%",
+    borderRadius: 28,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    overflow: "hidden",
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 28,
+    elevation: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+    backgroundColor: "rgba(168, 85, 247, 0.1)",
+  },
+  modalTitle: {
+    color: C.textPrimary,
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+  },
+  rulesScrollView: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  ruleSection: {
+    marginBottom: 20,
+  },
+  ruleTitle: {
+    color: C.gold,
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  ruleText: {
+    color: C.textMuted,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 21,
+  },
+  ruleBullet: {
+    color: C.textMuted,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 22,
+    marginBottom: 4,
+    marginLeft: 4,
+  },
+  ruleBulletLabel: {
+    color: C.primary,
+    fontWeight: "700",
+  },
+  rulesFooter: {
+    height: 16,
   },
 });

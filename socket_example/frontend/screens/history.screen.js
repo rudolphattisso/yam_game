@@ -124,11 +124,14 @@ export default function HistoryScreen({ route }) {
     return 'Aucune partie enregistree pour le moment.';
   }, [errorMessage]);
 
-  const renderItem = ({ item }) => (
+  const renderItem = ({ item, index }) => (
     <View style={styles.itemCard}>
       <View style={styles.itemTopRow}>
-        <Text style={styles.itemMode}>Partie {getModeLabel(item?.mode)}</Text>
-        <Text style={styles.itemDate}>{formatDateTime(item?.ended_at)}</Text>
+        <View style={styles.itemHeadingLeft}>
+          <Text style={styles.itemIndex}>Partie #{index + 1}</Text>
+          <Text style={styles.itemMode}>Type: {getModeLabel(item?.mode)}</Text>
+        </View>
+        <Text style={styles.itemDate}>Le {formatDateTime(item?.ended_at)}</Text>
       </View>
 
       <Text style={styles.itemResult}>Gagnant: {getWinnerLabel(item)}</Text>
@@ -178,6 +181,9 @@ export default function HistoryScreen({ route }) {
       <View style={styles.headerCard}>
         <Text style={styles.title}>Historique des parties</Text>
         <Text style={styles.subtitle}>Consultez vos dernieres parties terminees</Text>
+        {!isLoading && (
+          <Text style={styles.countText}>Parties jouees: {items.length}</Text>
+        )}
       </View>
 
       {isLoading ? (
@@ -186,26 +192,38 @@ export default function HistoryScreen({ route }) {
           <Text style={styles.loadingText}>Chargement de l'historique...</Text>
         </View>
       ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(item, index) => String(item?.id || index)}
-          contentContainerStyle={styles.listContent}
-          renderItem={renderItem}
-          ListEmptyComponent={<Text style={styles.emptyText}>{emptyText}</Text>}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={() => fetchHistory({ refreshing: true })}
-              tintColor="#A78BFA"
-            />
-          }
-        />
-      )}
-
-      {!isLoading && errorMessage && (
-        <Pressable style={({ pressed }) => [styles.retryButton, pressed && { opacity: 0.8 }]} onPress={() => fetchHistory()}>
-          <Text style={styles.retryButtonText}>Reessayer</Text>
-        </Pressable>
+        <View style={styles.listWrapper}>
+          <FlatList
+            data={items}
+            style={styles.list}
+            keyExtractor={(item, index) => String(item?.id || index)}
+            contentContainerStyle={[
+              styles.listContent,
+              items.length === 0 && styles.listContentEmpty,
+            ]}
+            renderItem={renderItem}
+            ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+            ListEmptyComponent={<Text style={styles.emptyText}>{emptyText}</Text>}
+            ListFooterComponent={
+              errorMessage ? (
+                <Pressable
+                  style={({ pressed }) => [styles.retryButton, pressed && { opacity: 0.8 }]}
+                  onPress={() => fetchHistory()}
+                >
+                  <Text style={styles.retryButtonText}>Reessayer</Text>
+                </Pressable>
+              ) : null
+            }
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={() => fetchHistory({ refreshing: true })}
+                tintColor="#A78BFA"
+              />
+            }
+            showsVerticalScrollIndicator
+          />
+        </View>
       )}
     </View>
   );
@@ -243,9 +261,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
   },
+  countText: {
+    color: '#E2E8F0',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 10,
+  },
   loadingWrapper: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
     gap: 10,
   },
@@ -253,10 +277,23 @@ const styles = StyleSheet.create({
     color: '#DDD6FE',
     fontSize: 14,
     fontWeight: '600',
+    textAlign: 'left',
+  },
+  listWrapper: {
+    flex: 1,
+  },
+  list: {
+    flex: 1,
   },
   listContent: {
-    paddingBottom: 20,
-    gap: 10,
+    paddingBottom: 24,
+  },
+  listContentEmpty: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  itemSeparator: {
+    height: 10,
   },
   itemCard: {
     backgroundColor: 'rgba(15, 23, 42, 0.72)',
@@ -267,20 +304,35 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   itemTopRow: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
+  },
+  itemHeadingLeft: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
+  },
+  itemIndex: {
+    color: '#0F172A',
+    fontSize: 11,
+    fontWeight: '900',
+    backgroundColor: '#FDE68A',
+    borderRadius: 999,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
   },
   itemMode: {
-    color: '#FDE68A',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  itemDate: {
     color: '#C4B5FD',
     fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  itemDate: {
+    color: '#A5B4FC',
+    fontSize: 12,
     fontWeight: '600',
+    textAlign: 'left',
   },
   itemResult: {
     color: '#F8FAFC',
@@ -298,10 +350,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 10,
+    gap: 2,
   },
   infoKey: {
     color: '#A5B4FC',
@@ -312,8 +361,7 @@ const styles = StyleSheet.create({
     color: '#E2E8F0',
     fontSize: 13,
     fontWeight: '600',
-    flexShrink: 1,
-    textAlign: 'right',
+    textAlign: 'left',
   },
   itemReason: {
     color: '#93C5FD',
@@ -322,14 +370,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: '#C4B5FD',
-    textAlign: 'center',
-    marginTop: 28,
+    textAlign: 'left',
     fontSize: 14,
     fontWeight: '600',
+    paddingHorizontal: 20,
   },
   retryButton: {
     alignSelf: 'center',
-    marginTop: 8,
+    marginTop: 14,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 999,
