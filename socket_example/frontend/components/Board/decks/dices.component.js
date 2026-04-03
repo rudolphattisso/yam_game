@@ -40,10 +40,10 @@ Dice.defaultProps = {
 };
 
 const styles = StyleSheet.create({
-  // 🎨 Dé standard
+  // LAYOUT: Dé standard
   dice: {
-    width: 40,
-    height: 40,
+    width: 54,
+    height: 54,
     backgroundColor: "#FFF7E6",
     borderRadius: 10,
     borderWidth: 1,
@@ -56,14 +56,14 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
-  // 🎨 Dé verrouillé
+  // LAYOUT: Dé verrouillé
   lockedDice: {
     backgroundColor: "#7A1111",
     borderColor: "#D4AF37",
   },
-  // 🎨 Valeur du dé
+  // LAYOUT: Valeur du dé
   diceText: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "900",
     color: "#3D1F14",
   },

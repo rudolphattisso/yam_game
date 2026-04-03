@@ -1,5 +1,13 @@
 const express = require('express');
 const authService = require('../services/auth.service');
+const { authRateLimit } = require('../middleware/rate-limit');
+const { validateBody } = require('../middleware/validate-request');
+const {
+  registerSchema,
+  loginSchema,
+  refreshSchema,
+  logoutSchema,
+} = require('../validators/request-schemas');
 
 const router = express.Router();
 
@@ -8,7 +16,7 @@ const getRequestMetadata = (req) => ({
   ipAddress: req.ip,
 });
 
-router.post('/register', async (req, res) => {
+router.post('/register', authRateLimit, validateBody(registerSchema), async (req, res) => {
   try {
     const result = await authService.register(req.body, getRequestMetadata(req));
     res.status(result.status).json(result.body);
@@ -17,7 +25,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', authRateLimit, validateBody(loginSchema), async (req, res) => {
   try {
     const result = await authService.login(req.body, getRequestMetadata(req));
     res.status(result.status).json(result.body);
@@ -26,7 +34,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', authRateLimit, validateBody(refreshSchema), async (req, res) => {
   try {
     const result = await authService.refresh(req.body, getRequestMetadata(req));
     res.status(result.status).json(result.body);
@@ -35,7 +43,7 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
-router.post('/logout', async (req, res) => {
+router.post('/logout', validateBody(logoutSchema), async (req, res) => {
   try {
     const result = await authService.logout(req.body);
     res.status(result.status).json(result.body);

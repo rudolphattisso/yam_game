@@ -1,4 +1,5 @@
-// app/components/board/decks/player-deck.component.js
+// app/components/board/decks/player-deck.redesigned.js
+// LAYOUT: Controls zone — stacked vertically with proper spacing
 
 import React, { useState, useContext, useEffect } from "react";
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
@@ -7,7 +8,6 @@ import Dice from "./dices.component";
 import { BOARD_COLORS } from "../board-colors";
 
 const PlayerDeck = () => {
-
   const socket = useContext(SocketContext);
   const [displayPlayerDeck, setDisplayPlayerDeck] = useState(false);
   const [dices, setDices] = useState(new Array(5).fill(false));
@@ -18,7 +18,6 @@ const PlayerDeck = () => {
   const [rollsMaximum, setRollsMaximum] = useState(3);
 
   useEffect(() => {
-
     const onDeckViewState = (data) => {
       setDisplayPlayerDeck(data['displayPlayerDeck']);
       if (data['displayPlayerDeck']) {
@@ -57,141 +56,191 @@ const PlayerDeck = () => {
     }
   };
 
+  if (!displayPlayerDeck) return null;
+
   return (
+    <View style={styles.controlsContainer}>
+      {/* LAYOUT: Section 1 — Roll counter + full-width Roll button (green) */}
+      {displayRollButton && (
+        <View style={styles.rollSection}>
+          <View style={styles.rollCounterBadge}>
+            <Text style={styles.rollCounterText}>
+              🎲 Lancer {rollsCounter} / {rollsMaximum}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.rollButtonFullWidth}
+            onPress={rollDices}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.rollButtonText}>🎲 ROLL</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-    <View style={styles.deckPlayerContainer}>
+      {/* LAYOUT: Section 2 — Full-width Defi button (orange/maroon) */}
+      {displayRollButton && (
+        <TouchableOpacity
+          style={[
+            styles.defiButtonFullWidth,
+            !canDeclareDefi && !isDefiActive && styles.defiButtonDisabled,
+            isDefiActive && styles.defiButtonActive,
+          ]}
+          onPress={activateDefi}
+          disabled={!canDeclareDefi || isDefiActive}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.defiButtonText}>
+            {isDefiActive ? "🔥 DEFI ACTIF 🔥" : "🎯 ACTIVER DEFI"}
+          </Text>
+        </TouchableOpacity>
+      )}
 
-      {displayPlayerDeck && (
-
-        <>
-          {displayRollButton && (
-            <View style={styles.rollInfoContainer}>
-              <Text style={styles.rollInfoText}>
-                Lancer {rollsCounter} / {rollsMaximum}
-              </Text>
-            </View>
-          )}
-
-          {displayRollButton && (
-            <TouchableOpacity
-              style={[
-                styles.defiButton,
-                !canDeclareDefi && !isDefiActive && styles.defiButtonDisabled,
-                isDefiActive && styles.defiButtonActive,
-              ]}
-              onPress={activateDefi}
-              disabled={!canDeclareDefi || isDefiActive}
-            >
-              <Text style={styles.defiButtonText}>
-                {isDefiActive ? "Defi active" : "Activer Defi"}
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          <View style={styles.diceContainer}>
-            {dices.map((diceData, index) => (
+      {/* LAYOUT: Section 3 — Dice row (5 dice, min 52x52px each, no truncation) */}
+      {displayRollButton && (
+        <View style={styles.dicesRow}>
+          {dices.map((diceData, index) => (
+            <View key={diceData.id} style={styles.diceWrapper}>
               <Dice
-                key={diceData.id}
                 index={index}
                 locked={diceData.locked}
                 value={diceData.value}
                 onPress={toggleDiceLock}
               />
-            ))}
-          </View>
-
-          {displayRollButton && (
-            <TouchableOpacity style={styles.rollButton} onPress={rollDices}>
-              <Text style={styles.rollButtonText}>Roll</Text>
-            </TouchableOpacity>
-          )}
-        </>
+            </View>
+          ))}
+        </View>
       )}
-
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  // 🎨 Zone deck joueur
-  deckPlayerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderColor: "rgba(212, 175, 55, 0.4)",
-    backgroundColor: BOARD_COLORS.player1Soft,
+  // ─────────────────────────────────────────────────────────
+  // LAYOUT: Main controls container — vertical stack, no flex shrink
+  // ─────────────────────────────────────────────────────────
+  controlsContainer: {
+    width: '100%',
+    flexDirection: 'column',
+    gap: 10,
+    paddingHorizontal: 0,
+    paddingVertical: 6,
+    alignItems: 'stretch',
+    justifyContent: 'center',
   },
-  // 🎨 Compteur de lancers
-  rollInfoContainer: {
-    marginBottom: 10,
-    paddingHorizontal: 12,
+
+  // ─────────────────────────────────────────────────────────
+  // LAYOUT: Roll section — counter badge + button on same area
+  // ─────────────────────────────────────────────────────────
+  rollSection: {
+    width: '100%',
+    gap: 6,
+    alignItems: 'center',
+  },
+
+  rollCounterBadge: {
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: BOARD_COLORS.player1,
+    backgroundColor: '#2E7D32',
     borderWidth: 1,
-    borderColor: "rgba(212, 175, 55, 0.4)",
+    borderColor: '#4ADE80',
+    alignSelf: 'center',
   },
-  rollInfoText: {
+
+  rollCounterText: {
     fontSize: 12,
-    fontWeight: "700",
-    color: "#FFF7E6",
+    fontWeight: '700',
+    color: '#F1F8E9',
   },
-  // 🎨 Rangée de dés joueur
-  diceContainer: {
-    flexDirection: "row",
-    width: "70%",
-    justifyContent: "space-between",
-    marginBottom: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
+
+  // ─────────────────────────────────────────────────────────
+  // LAYOUT: Roll button — full width, green, prominent
+  // ─────────────────────────────────────────────────────────
+  rollButtonFullWidth: {
+    width: '100%',
+    paddingVertical: 14,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(212, 175, 55, 0.4)",
-    backgroundColor: BOARD_COLORS.player1Soft,
+    backgroundColor: '#2E7D32',
+    borderWidth: 2,
+    borderColor: '#4ADE80',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  // 🎨 Bouton lancer
-  rollButton: {
-    width: "30%",
-    paddingVertical: 12,
-    borderRadius: 999,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: BOARD_COLORS.player1,
-    borderWidth: 1,
-    borderColor: "#D4AF37",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
-  },
+
   rollButtonText: {
-    fontSize: 14,
-    color: "#FFF7E6",
-    fontWeight: "900",
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#F1F8E9',
+    letterSpacing: 1,
   },
-  defiButton: {
-    marginBottom: 10,
-    width: "42%",
-    paddingVertical: 10,
-    borderRadius: 999,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#7A1111",
-    borderWidth: 1,
-    borderColor: "#D4AF37",
+
+  // ─────────────────────────────────────────────────────────
+  // LAYOUT: Defi button — full width, orange/maroon, distinct
+  // ─────────────────────────────────────────────────────────
+  defiButtonFullWidth: {
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#B8860B',
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 4,
   },
+
   defiButtonDisabled: {
-    opacity: 0.45,
+    opacity: 0.5,
+    backgroundColor: '#666666',
+    borderColor: '#999999',
   },
+
   defiButtonActive: {
-    backgroundColor: "#2E7D32",
+    backgroundColor: '#2E7D32',
+    borderColor: '#4ADE80',
   },
+
   defiButtonText: {
-    color: "#FFF7E6",
-    fontSize: 12,
-    fontWeight: "800",
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFF7E6',
+    letterSpacing: 0.5,
+  },
+
+  // ─────────────────────────────────────────────────────────
+  // LAYOUT: Dices row — 5 dice, min 52x52px each, equidistant
+  // ─────────────────────────────────────────────────────────
+  dicesRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(212, 175, 55, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.3)',
+    minHeight: 88,
+  },
+
+  diceWrapper: {
+    flex: 1,
+    maxWidth: 68,
+    minWidth: 54,
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

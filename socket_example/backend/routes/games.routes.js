@@ -1,11 +1,13 @@
 const express = require('express');
 const { query } = require('../db/postgres');
+const { validateQuery } = require('../middleware/validate-request');
+const { recentGamesQuerySchema } = require('../validators/request-schemas');
 
 const router = express.Router();
 
-router.get('/recent', async (req, res) => {
+router.get('/recent', validateQuery(recentGamesQuerySchema), async (req, res) => {
   try {
-    const limit = Math.min(Number.parseInt(req.query.limit, 10) || 20, 100);
+    const limit = req.query.limit || 20;
 
     const result = await query(
       `

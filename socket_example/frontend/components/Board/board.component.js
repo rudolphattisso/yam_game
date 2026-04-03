@@ -1,8 +1,9 @@
 // app/components/board/board.component.js
+// LAYOUT: Complete redesign - No overlaps, clear zones, ergonomic spacing
 
 import React, { useContext, useEffect, useState } from "react";
 import PropTypes from 'prop-types';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import OpponentTimer from './opponent-timer.component';
 import PlayerTimer from './player-timer.component';
 import OpponentDeck from './decks/opponent-deck.component';
@@ -10,56 +11,65 @@ import PlayerDeck from './decks/player-deck.component';
 import Grid from './grid/grid.component';
 import Choices from './choices/choices.component';
 import { SocketContext } from '../../contexts/socket.context';
+import { BOARD_COLORS } from './board-colors';
 
-const OpponentInfos = () => {
+// ─────────────────────────────────────────────────────────────
+// LAYOUT: Opponent header — fixed bandeau with name | score + pawns
+// ─────────────────────────────────────────────────────────────
+const OpponentHeader = ({ score, remainingPawns, timerComponent }) => {
   return (
-    <View style={styles.opponentInfosContainer}>
-      <Text style={styles.infoTitle}>🃏 Adversaire</Text>
+    <View style={styles.opponentHeader}>
+      <View style={styles.opponentNameSection}>
+        <Text style={styles.opponentLabel}>🃏 Adversaire</Text>
+      </View>
+      <View style={styles.opponentStatsSection}>
+        <View style={styles.timerContainer}>
+          {timerComponent}
+        </View>
+        <View style={styles.statsVertical}>
+          <Text style={styles.scoreText}>⭐ {score}</Text>
+          <Text style={styles.pawnsText}>🎯 {remainingPawns}</Text>
+        </View>
+      </View>
     </View>
   );
 };
 
-
-const OpponentScore = ({ score, remainingPawns }) => {
+// ─────────────────────────────────────────────────────────────
+// LAYOUT: Player footer — fixed bandeau with name | timer + score + pawns
+// ─────────────────────────────────────────────────────────────
+const PlayerFooter = ({ score, remainingPawns, timerComponent }) => {
   return (
-    <View style={styles.opponentScoreContainer}>
-      <Text style={styles.scoreText}>⭐ Score: {score}</Text>
-      <Text style={styles.pawnsText}>🎯 Pions: {remainingPawns}</Text>
+    <View style={styles.playerFooter}>
+      <View style={styles.playerNameSection}>
+        <Text style={styles.playerLabel}>🎲 Toi</Text>
+      </View>
+      <View style={styles.playerStatsSection}>
+        <View style={styles.timerContainer}>
+          {timerComponent}
+        </View>
+        <View style={styles.statsVertical}>
+          <Text style={styles.scoreText}>⭐ {score}</Text>
+          <Text style={styles.pawnsText}>🎯 {remainingPawns}</Text>
+        </View>
+      </View>
     </View>
   );
 };
 
-
-
-const PlayerInfos = () => {
-  return (
-    <View style={styles.playerInfosContainer}>
-      <Text style={styles.infoTitle}>🎲 Toi</Text>
-    </View>
-  );
-};
-
-
-const PlayerScore = ({ score, remainingPawns }) => {
-
-  return (
-    <View style={styles.playerScoreContainer}>
-      <Text style={styles.scoreText}>⭐ Score: {score}</Text>
-      <Text style={styles.pawnsText}>🎯 Pions: {remainingPawns}</Text>
-    </View>
-  );
-};
-
-
-
-const Board = ({ gameViewState}) => {
+// ─────────────────────────────────────────────────────────────
+// LAYOUT: Main Board component
+// ─────────────────────────────────────────────────────────────
+const Board = ({ gameViewState }) => {
   const socket = useContext(SocketContext);
+  const { width } = useWindowDimensions();
   const [scores, setScores] = useState({
     playerScore: 0,
     opponentScore: 0,
     playerRemainingPawns: 12,
     opponentRemainingPawns: 12,
   });
+  const isCompactLayout = width < 900;
 
   useEffect(() => {
     const onScoreViewState = (data) => {
@@ -79,44 +89,235 @@ const Board = ({ gameViewState}) => {
   }, [socket]);
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.row, { height: '5%' }]}>
-        <OpponentInfos />
-        <View style={styles.opponentTimerScoreContainer}>
-          <OpponentTimer />
-          <OpponentScore score={scores.opponentScore} remainingPawns={scores.opponentRemainingPawns} />
-        </View>
-      </View>
-      <View style={[styles.row, { height: '25%' }]}>
+    <View style={styles.boardContainer}>
+      {/* LAYOUT: Opponent header bandeau — fixed height, no overflow */}
+      <OpponentHeader
+        score={scores.opponentScore}
+        remainingPawns={scores.opponentRemainingPawns}
+        timerComponent={<OpponentTimer />}
+      />
+
+      {/* LAYOUT: Opponent deck zone */}
+      <View style={styles.opponentDeckZone}>
         <OpponentDeck />
       </View>
-      <View style={[styles.row, { height: '40%' }]}>
-        <Grid />
-        <Choices />
-      </View>
-      <View style={[styles.row, { height: '25%' }]}>
-        <PlayerDeck />
-      </View>
-      <View style={[styles.row, { height: '5%' }]}>
-        <PlayerInfos />
-        <View style={styles.playerTimerScoreContainer}>
-          <PlayerTimer />
-          <PlayerScore score={scores.playerScore} remainingPawns={scores.playerRemainingPawns} />
+
+      {/* LAYOUT: Central game area with responsive grid + choices */}
+      <View style={[styles.gameArea, isCompactLayout && styles.gameAreaCompact]}>
+        <View style={[styles.gridPanel, isCompactLayout && styles.gridPanelCompact]}>
+          <Grid />
+        </View>
+
+        <View style={[styles.choicesPanel, isCompactLayout && styles.choicesPanelCompact]}>
+          <Choices />
         </View>
       </View>
+
+      {/* LAYOUT: Player controls zone — fixed, stacked vertically */}
+      <View style={[styles.controlsZone, isCompactLayout && styles.controlsZoneCompact]}>
+        <PlayerDeck />
+      </View>
+
+      {/* LAYOUT: Player footer bandeau — fixed height, no overflow */}
+      <PlayerFooter
+        score={scores.playerScore}
+        remainingPawns={scores.playerRemainingPawns}
+        timerComponent={<PlayerTimer />}
+      />
     </View>
   );
 };
 
-OpponentScore.propTypes = {
-  score: PropTypes.number.isRequired,
-  remainingPawns: PropTypes.number.isRequired,
-};
+const styles = StyleSheet.create({
+  // ─────────────────────────────────────────────────────────
+  // LAYOUT: Main container — flexbox column, no overflow
+  // ─────────────────────────────────────────────────────────
+  boardContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    flexDirection: 'column',
+    backgroundColor: '#1A3D22',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#D4AF37',
+    overflow: 'hidden',
+  },
 
-PlayerScore.propTypes = {
-  score: PropTypes.number.isRequired,
-  remainingPawns: PropTypes.number.isRequired,
-};
+  // ─────────────────────────────────────────────────────────
+  // LAYOUT: Opponent header — fixed bandeau, 7% height
+  // ─────────────────────────────────────────────────────────
+  opponentHeader: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(122, 17, 17, 0.15)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212, 175, 55, 0.4)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+
+  opponentNameSection: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+
+  opponentLabel: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FFF7E6',
+    letterSpacing: 0.2,
+  },
+
+  opponentStatsSection: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+
+  timerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 56,
+  },
+
+  statsVertical: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+
+  scoreText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFE082',
+  },
+
+  pawnsText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFF7E6',
+  },
+
+  // ─────────────────────────────────────────────────────────
+  // LAYOUT: Opponent deck zone
+  // ─────────────────────────────────────────────────────────
+  opponentDeckZone: {
+    width: '100%',
+    minHeight: 92,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: BOARD_COLORS.player2Soft,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212, 175, 55, 0.4)',
+  },
+
+  // ─────────────────────────────────────────────────────────
+  // LAYOUT: Central game area — grid dominant, choices sidebar
+  // ─────────────────────────────────────────────────────────
+  gameArea: {
+    flex: 1,
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    gap: 10,
+    backgroundColor: '#1A3D22',
+  },
+
+  gameAreaCompact: {
+    flexDirection: 'column',
+  },
+
+  gridPanel: {
+    flex: 3.4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 0,
+  },
+
+  gridPanelCompact: {
+    width: '100%',
+    flex: 1,
+  },
+
+  choicesPanel: {
+    flex: 1.35,
+    minWidth: 112,
+    maxWidth: 172,
+    alignSelf: 'stretch',
+  },
+
+  choicesPanelCompact: {
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    flex: 0,
+    minHeight: 152,
+    maxHeight: 188,
+  },
+
+  // ─────────────────────────────────────────────────────────
+  // LAYOUT: Controls zone — player deck, fixed bottom-middle
+  // ─────────────────────────────────────────────────────────
+  controlsZone: {
+    minHeight: 196,
+    width: '100%',
+    backgroundColor: BOARD_COLORS.player1Soft,
+    borderTopWidth: 1,
+    borderBottomColor: 'rgba(212, 175, 55, 0.4)',
+    borderTopColor: 'rgba(212, 175, 55, 0.4)',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  controlsZoneCompact: {
+    minHeight: 176,
+  },
+
+  // ─────────────────────────────────────────────────────────
+  // LAYOUT: Player footer — fixed bandeau, 7% height
+  // ─────────────────────────────────────────────────────────
+  playerFooter: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(122, 17, 17, 0.15)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(212, 175, 55, 0.4)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+
+  playerNameSection: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+
+  playerLabel: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FFF7E6',
+    letterSpacing: 0.2,
+  },
+
+  playerStatsSection: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+});
 
 Board.propTypes = {
   gameViewState: PropTypes.object,
@@ -126,108 +327,16 @@ Board.defaultProps = {
   gameViewState: null,
 };
 
-const styles = StyleSheet.create({
-  // 🎨 Plateau global
-  container: {
-    flex: 1,
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    height: '100%',
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#D4AF37',
-    backgroundColor: '#1A3D22',
-  },
-  // 🎨 Lignes du plateau
-  row: {
-    flexDirection: 'row',
-    width: '100%',
-    borderBottomWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.4)',
-  },
-  // 🎨 Cartes infos adversaire
-  opponentInfosContainer: {
-    flex: 7,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRightWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.4)',
-    backgroundColor: '#1A3D22',
-  },
-  opponentTimerScoreContainer: {
-    flex: 3,
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1A3D22',
-  },
+OpponentHeader.propTypes = {
+  score: PropTypes.number.isRequired,
+  remainingPawns: PropTypes.number.isRequired,
+  timerComponent: PropTypes.element.isRequired,
+};
 
-  // 🎨 Cartes score adversaire
-  opponentScoreContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(122, 17, 17, 0.25)',
-  },
-  deckOpponentContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.4)',
-  },
-
-  deckPlayerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.4)',
-  },
-  // 🎨 Cartes infos joueur
-  playerInfosContainer: {
-    flex: 7,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRightWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.4)',
-    backgroundColor: '#1A3D22',
-  },
-  playerTimerScoreContainer: {
-    flex: 3,
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1A3D22',
-  },
-  playerScoreContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(122, 17, 17, 0.25)',
-  },
-
-  // 🎨 Typographie du HUD
-  infoTitle: {
-    color: '#FFF7E6',
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 0.2,
-  },
-  scoreText: {
-    color: '#FFE082',
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  pawnsText: {
-    color: '#FFF7E6',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-});
+PlayerFooter.propTypes = {
+  score: PropTypes.number.isRequired,
+  remainingPawns: PropTypes.number.isRequired,
+  timerComponent: PropTypes.element.isRequired,
+};
 
 export default Board;

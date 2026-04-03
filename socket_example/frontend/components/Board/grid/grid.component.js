@@ -38,7 +38,7 @@ const Grid = () => {
         <View style={styles.gridContainer}>
             {displayGrid &&
                 safeGrid.map((row, rowIndex) => (
-                        <View key={row.map(cell => cell.id).join('-') + '-' + rowIndex} style={styles.row}>
+                    <View key={row.map(cell => cell.id).join('-') + '-' + rowIndex} style={styles.row}>
                         {row.map((cell, cellIndex) => (
                             <TouchableOpacity
                                 key={cell.id}
@@ -46,7 +46,7 @@ const Grid = () => {
                                     styles.cell,
                                     cell.owner === "player:1" && styles.playerOwnedCell,
                                     cell.owner === "player:2" && styles.opponentOwnedCell,
-                                        (cell.canBeChecked && cell.owner !== "player:1" && cell.owner !== "player:2") && styles.canBeCheckedCell,
+                                    (cell.canBeChecked && cell.owner !== "player:1" && cell.owner !== "player:2") && styles.canBeCheckedCell,
                                     rowIndex !== 0 && styles.topBorder,
                                     cellIndex !== 0 && styles.leftBorder,
                                 ]}
@@ -63,15 +63,20 @@ const Grid = () => {
 };
 
 const styles = StyleSheet.create({
-    // 🎨 Conteneur grille
+    // LAYOUT: Conteneur grille principal
     gridContainer: {
-        flex: 7,
+        width: "100%",
+        aspectRatio: 1,
         justifyContent: "center",
         alignItems: "center",
         flexDirection: "column",
         backgroundColor: "#1A3D22",
+        borderRadius: 14,
+        overflow: "hidden",
+        borderWidth: 1,
+        borderColor: "rgba(212, 175, 55, 0.35)",
     },
-    // 🎨 Lignes de grille
+    // LAYOUT: Lignes de grille
     row: {
         flexDirection: "row",
         flex: 1,
@@ -79,25 +84,27 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
     },
-    // 🎨 Cellules de base
+    // LAYOUT: Cellules de grille
     cell: {
-        flexDirection: "row",
-        flex: 2,
-        width: "100%",
-        height: "100%",
+        flex: 1,
         justifyContent: "center",
         alignItems: "center",
         borderWidth: 1,
         borderColor: "rgba(212, 175, 55, 0.4)",
         backgroundColor: "#FFF7E6",
+        minWidth: 54,
+        minHeight: 54,
+        paddingHorizontal: 4,
+        paddingVertical: 6,
     },
-    // 🎨 Typographie des cellules
+    // LAYOUT: Typographie des cellules
     cellText: {
-        fontSize: 11,
+        fontSize: 15,
         color: "#3D1F14",
         fontWeight: "700",
+        textAlign: "center",
     },
-    // 🎨 Cellule possédée joueur
+    // LAYOUT: Etats de cellules
     playerOwnedCell: {
         backgroundColor: BOARD_COLORS.player1,
         opacity: 0.9,

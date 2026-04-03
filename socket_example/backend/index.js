@@ -762,6 +762,17 @@ const startServer = async () => {
     console.error(`[db] PostgreSQL ping failed: ${error.message}`);
   }
 
+  http.once('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`[server] port ${PORT} is already in use. Stop the existing process or change BACKEND_PORT.`);
+      process.exitCode = 1;
+      return;
+    }
+
+    console.error(`[server] failed to start: ${error.message}`);
+    process.exitCode = 1;
+  });
+
   http.listen(PORT, function () {
     console.log(`listening on *:${PORT}`);
   });

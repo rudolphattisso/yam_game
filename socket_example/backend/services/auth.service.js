@@ -7,6 +7,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev_only_change_me';
 const ACCESS_TOKEN_TTL = process.env.ACCESS_TOKEN_TTL || '15m';
 const REFRESH_TOKEN_TTL = process.env.REFRESH_TOKEN_TTL || '7d';
 
+if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'dev_only_change_me') {
+  throw new Error('JWT_SECRET must be configured in production');
+}
+
 const isEmail = (value) => value.includes('@');
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
 
