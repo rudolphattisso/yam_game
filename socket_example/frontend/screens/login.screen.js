@@ -22,12 +22,6 @@ export default function LoginScreen({ navigation, route }) {
 
     const resetFormFields = () => {
         setIdentifier('');
-    const handleGuestMode = () => {
-        navigation.navigate('HomeScreen', {
-            userMode: 'guest',
-            clientSessionId: route?.params?.clientSessionId || buildClientSessionId(),
-        });
-    };
         setUsername('');
         setEmail('');
         setPassword('');
@@ -330,7 +324,7 @@ export default function LoginScreen({ navigation, route }) {
                             onPress={handleGuestMode}
                         >
                             <Text style={styles.guestLinkText}>
-                                Continuer sans compte ? <Text style={styles.guestLinkTextStrong}>Mode invite</Text>
+                                Continuer sans compte ? <Text style={styles.guestLinkTextStrong}>Mode invité</Text>
                             </Text>
                         </Pressable>
 
@@ -594,13 +588,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
     },
     backButtonText: {
-        color: '#8B8BC0',
+        color: '#A78BFA',
         fontSize: 14,
         fontWeight: '600',
         letterSpacing: 0.3,
     },
     guestLinkWrapper: {
-        marginTop: 12,
+        marginTop: 18,
         alignItems: 'center',
     },
     guestLinkText: {

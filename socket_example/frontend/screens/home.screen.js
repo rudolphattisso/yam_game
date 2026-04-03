@@ -126,7 +126,10 @@ export default function HomeScreen({ navigation, route }) {
         </View>
 
         {!isConnected && (
-          <Pressable onPress={handleGoToLogin} style={styles.loginLinkWrapper}>
+          <Pressable
+            onPress={handleGoToLogin}
+            style={({ pressed }) => [styles.loginLinkWrapper, pressed && { opacity: 0.7 }]}
+          >
             <Text style={styles.loginLinkText}>
               Vous avez deja un compte ? <Text style={styles.loginLinkTextStrong}>Se connecter</Text>
             </Text>
