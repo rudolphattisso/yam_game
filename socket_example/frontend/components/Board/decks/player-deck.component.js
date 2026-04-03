@@ -2,28 +2,25 @@
 // LAYOUT: Controls zone — stacked vertically with proper spacing
 
 import React, { useState, useContext, useEffect } from "react";
-import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, useWindowDimensions } from "react-native";
 import { SocketContext } from "../../../contexts/socket.context";
 import Dice from "./dices.component";
-import { BOARD_COLORS } from "../board-colors";
 
 const PlayerDeck = () => {
   const socket = useContext(SocketContext);
+  const { width } = useWindowDimensions();
   const [displayPlayerDeck, setDisplayPlayerDeck] = useState(false);
   const [dices, setDices] = useState(new Array(5).fill(false));
   const [displayRollButton, setDisplayRollButton] = useState(false);
-  const [canDeclareDefi, setCanDeclareDefi] = useState(false);
-  const [isDefiActive, setIsDefiActive] = useState(false);
   const [rollsCounter, setRollsCounter] = useState(0);
   const [rollsMaximum, setRollsMaximum] = useState(3);
+  const isSmallScreen = width < 520;
 
   useEffect(() => {
     const onDeckViewState = (data) => {
       setDisplayPlayerDeck(data['displayPlayerDeck']);
       if (data['displayPlayerDeck']) {
         setDisplayRollButton(data['displayRollButton']);
-        setCanDeclareDefi(Boolean(data['canDeclareDefi']));
-        setIsDefiActive(Boolean(data['isDefiActive']));
         setRollsCounter(data['rollsCounter']);
         setRollsMaximum(data['rollsMaximum']);
         setDices(data['dices']);
@@ -50,16 +47,10 @@ const PlayerDeck = () => {
     }
   };
 
-  const activateDefi = () => {
-    if (canDeclareDefi && !isDefiActive) {
-      socket.emit("game.defi.activate");
-    }
-  };
-
   if (!displayPlayerDeck) return null;
 
   return (
-    <View style={styles.controlsContainer}>
+    <View style={[styles.controlsContainer, isSmallScreen && styles.controlsContainerCompact]}>
       {/* LAYOUT: Section 1 — Roll counter + full-width Roll button (green) */}
       {displayRollButton && (
         <View style={styles.rollSection}>
@@ -78,29 +69,11 @@ const PlayerDeck = () => {
         </View>
       )}
 
-      {/* LAYOUT: Section 2 — Full-width Defi button (orange/maroon) */}
+      {/* LAYOUT: Section 2 — Dice row (5 dice, min 52x52px each, no truncation) */}
       {displayRollButton && (
-        <TouchableOpacity
-          style={[
-            styles.defiButtonFullWidth,
-            !canDeclareDefi && !isDefiActive && styles.defiButtonDisabled,
-            isDefiActive && styles.defiButtonActive,
-          ]}
-          onPress={activateDefi}
-          disabled={!canDeclareDefi || isDefiActive}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.defiButtonText}>
-            {isDefiActive ? "🔥 DEFI ACTIF 🔥" : "🎯 ACTIVER DEFI"}
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      {/* LAYOUT: Section 3 — Dice row (5 dice, min 52x52px each, no truncation) */}
-      {displayRollButton && (
-        <View style={styles.dicesRow}>
+        <View style={[styles.dicesRow, isSmallScreen && styles.dicesRowCompact]}>
           {dices.map((diceData, index) => (
-            <View key={diceData.id} style={styles.diceWrapper}>
+            <View key={diceData.id} style={[styles.diceWrapper, isSmallScreen && styles.diceWrapperCompact]}>
               <Dice
                 index={index}
                 locked={diceData.locked}
@@ -127,6 +100,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     alignItems: 'stretch',
     justifyContent: 'center',
+  },
+  controlsContainerCompact: {
+    gap: 8,
+    paddingVertical: 4,
   },
 
   // ─────────────────────────────────────────────────────────
@@ -181,43 +158,6 @@ const styles = StyleSheet.create({
   },
 
   // ─────────────────────────────────────────────────────────
-  // LAYOUT: Defi button — full width, orange/maroon, distinct
-  // ─────────────────────────────────────────────────────────
-  defiButtonFullWidth: {
-    width: '100%',
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#B8860B',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-
-  defiButtonDisabled: {
-    opacity: 0.5,
-    backgroundColor: '#666666',
-    borderColor: '#999999',
-  },
-
-  defiButtonActive: {
-    backgroundColor: '#2E7D32',
-    borderColor: '#4ADE80',
-  },
-
-  defiButtonText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#FFF7E6',
-    letterSpacing: 0.5,
-  },
-
-  // ─────────────────────────────────────────────────────────
   // LAYOUT: Dices row — 5 dice, min 52x52px each, equidistant
   // ─────────────────────────────────────────────────────────
   dicesRow: {
@@ -233,6 +173,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(212, 175, 55, 0.3)',
     minHeight: 88,
   },
+  dicesRowCompact: {
+    minHeight: 70,
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+  },
 
   diceWrapper: {
     flex: 1,
@@ -241,6 +186,10 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  diceWrapperCompact: {
+    maxWidth: 52,
+    minWidth: 40,
   },
 });
 

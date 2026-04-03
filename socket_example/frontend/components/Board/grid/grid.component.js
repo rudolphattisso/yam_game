@@ -1,18 +1,21 @@
 // app/components/board/grid/grid.component.js
 
 import React, { useEffect, useContext, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native";
 import { SocketContext } from "../../../contexts/socket.context";
 import { BOARD_COLORS } from "../board-colors";
 
 const Grid = () => {
 
     const socket = useContext(SocketContext);
+    const { width } = useWindowDimensions();
 
     const [displayGrid, setDisplayGrid] = useState(true);
     const [canSelectCells, setCanSelectCells] = useState([]);
     const [grid, setGrid] = useState([]);
     const safeGrid = Array.isArray(grid) ? grid : [];
+    const isSmallScreen = width < 520;
+    const isVerySmallScreen = width < 420;
 
     const handleSelectCell = (cellId, rowIndex, cellIndex) => {
         if (canSelectCells) {
@@ -44,6 +47,8 @@ const Grid = () => {
                                 key={cell.id}
                                 style={[
                                     styles.cell,
+                                    isSmallScreen && styles.cellCompact,
+                                    isVerySmallScreen && styles.cellVeryCompact,
                                     cell.owner === "player:1" && styles.playerOwnedCell,
                                     cell.owner === "player:2" && styles.opponentOwnedCell,
                                     (cell.canBeChecked && cell.owner !== "player:1" && cell.owner !== "player:2") && styles.canBeCheckedCell,
@@ -53,7 +58,11 @@ const Grid = () => {
                                 onPress={() => handleSelectCell(cell.id, rowIndex, cellIndex)}
                                 disabled={!cell.canBeChecked}
                             >
-                                <Text style={styles.cellText}>{cell.viewContent}</Text>
+                                <Text style={[
+                                    styles.cellText,
+                                    isSmallScreen && styles.cellTextCompact,
+                                    isVerySmallScreen && styles.cellTextVeryCompact,
+                                ]}>{cell.viewContent}</Text>
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -92,10 +101,16 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "rgba(212, 175, 55, 0.4)",
         backgroundColor: "#FFF7E6",
-        minWidth: 54,
-        minHeight: 54,
         paddingHorizontal: 4,
         paddingVertical: 6,
+    },
+    cellCompact: {
+        paddingHorizontal: 3,
+        paddingVertical: 4,
+    },
+    cellVeryCompact: {
+        paddingHorizontal: 2,
+        paddingVertical: 2,
     },
     // LAYOUT: Typographie des cellules
     cellText: {
@@ -103,6 +118,12 @@ const styles = StyleSheet.create({
         color: "#3D1F14",
         fontWeight: "700",
         textAlign: "center",
+    },
+    cellTextCompact: {
+        fontSize: 12,
+    },
+    cellTextVeryCompact: {
+        fontSize: 10,
     },
     // LAYOUT: Etats de cellules
     playerOwnedCell: {

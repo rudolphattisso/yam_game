@@ -2,9 +2,12 @@
 
 import React from "react";
 import PropTypes from "prop-types";
-import { Text, TouchableOpacity, StyleSheet } from "react-native";
+import { Text, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native";
 
 const Dice = ({ index, locked, value, onPress, opponent }) => {
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 520;
+  const isVerySmallScreen = width < 420;
 
   const handlePress = () => {
     if (!opponent) {
@@ -14,11 +17,20 @@ const Dice = ({ index, locked, value, onPress, opponent }) => {
 
   return (
     <TouchableOpacity
-      style={[styles.dice, locked && styles.lockedDice]}
+      style={[
+        styles.dice,
+        isSmallScreen && styles.diceCompact,
+        isVerySmallScreen && styles.diceVeryCompact,
+        locked && styles.lockedDice,
+      ]}
       onPress={handlePress}
       disabled={opponent}
     >
-      <Text style={styles.diceText}>{value}</Text>
+      <Text style={[
+        styles.diceText,
+        isSmallScreen && styles.diceTextCompact,
+        isVerySmallScreen && styles.diceTextVeryCompact,
+      ]}>{value}</Text>
     </TouchableOpacity>
   );
 };
@@ -56,6 +68,16 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
+  diceCompact: {
+    width: 46,
+    height: 46,
+    borderRadius: 8,
+  },
+  diceVeryCompact: {
+    width: 40,
+    height: 40,
+    borderRadius: 7,
+  },
   // LAYOUT: Dé verrouillé
   lockedDice: {
     backgroundColor: "#7A1111",
@@ -66,6 +88,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "900",
     color: "#3D1F14",
+  },
+  diceTextCompact: {
+    fontSize: 18,
+  },
+  diceTextVeryCompact: {
+    fontSize: 16,
   },
   opponentText: {
     fontSize: 12,

@@ -60,14 +60,15 @@ const PlayerFooter = ({ name, remainingPawns, timerComponent }) => {
 // ─────────────────────────────────────────────────────────────
 const Board = ({ gameViewState, playerName, opponentName }) => {
   const socket = useContext(SocketContext);
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const [scores, setScores] = useState({
     playerScore: 0,
     opponentScore: 0,
     playerRemainingPawns: 12,
     opponentRemainingPawns: 12,
   });
-  const isCompactLayout = width < 900;
+  const isCompactLayout = width < 900 || height < 760;
+  const isSmallMobileLayout = width < 520 || height < 720;
 
   useEffect(() => {
     const onScoreViewState = (data) => {
@@ -96,23 +97,23 @@ const Board = ({ gameViewState, playerName, opponentName }) => {
       />
 
       {/* LAYOUT: Opponent deck zone */}
-      <View style={styles.opponentDeckZone}>
+      <View style={[styles.opponentDeckZone, isSmallMobileLayout && styles.opponentDeckZoneCompact]}>
         <OpponentDeck />
       </View>
 
       {/* LAYOUT: Central game area with responsive grid + choices */}
-      <View style={[styles.gameArea, isCompactLayout && styles.gameAreaCompact]}>
+      <View style={[styles.gameArea, isCompactLayout && styles.gameAreaCompact, isSmallMobileLayout && styles.gameAreaSmall]}>
         <View style={[styles.gridPanel, isCompactLayout && styles.gridPanelCompact]}>
           <Grid />
         </View>
 
-        <View style={[styles.choicesPanel, isCompactLayout && styles.choicesPanelCompact]}>
+        <View style={[styles.choicesPanel, isCompactLayout && styles.choicesPanelCompact, isSmallMobileLayout && styles.choicesPanelSmall]}>
           <Choices />
         </View>
       </View>
 
       {/* LAYOUT: Player controls zone — fixed, stacked vertically */}
-      <View style={[styles.controlsZone, isCompactLayout && styles.controlsZoneCompact]}>
+      <View style={[styles.controlsZone, isCompactLayout && styles.controlsZoneCompact, isSmallMobileLayout && styles.controlsZoneSmall]}>
         <PlayerDeck />
       </View>
 
@@ -134,6 +135,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
+    minHeight: 0,
     flexDirection: 'column',
     backgroundColor: '#1A3D22',
     borderRadius: 16,
@@ -146,7 +148,7 @@ const styles = StyleSheet.create({
   // LAYOUT: Opponent header — fixed bandeau, 7% height
   // ─────────────────────────────────────────────────────────
   opponentHeader: {
-    minHeight: 64,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -208,11 +210,17 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(212, 175, 55, 0.4)',
   },
 
+  opponentDeckZoneCompact: {
+    minHeight: 72,
+    paddingVertical: 6,
+  },
+
   // ─────────────────────────────────────────────────────────
   // LAYOUT: Central game area — grid dominant, choices sidebar
   // ─────────────────────────────────────────────────────────
   gameArea: {
     flex: 1,
+    minHeight: 0,
     width: '100%',
     flexDirection: 'row',
     alignItems: 'stretch',
@@ -226,11 +234,18 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
 
+  gameAreaSmall: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    gap: 8,
+  },
+
   gridPanel: {
     flex: 3.4,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 0,
+    minHeight: 0,
   },
 
   gridPanelCompact: {
@@ -250,15 +265,20 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
     minWidth: 0,
     flex: 0,
-    minHeight: 152,
-    maxHeight: 188,
+    minHeight: 128,
+    maxHeight: 164,
+  },
+
+  choicesPanelSmall: {
+    minHeight: 110,
+    maxHeight: 138,
   },
 
   // ─────────────────────────────────────────────────────────
   // LAYOUT: Controls zone — player deck, fixed bottom-middle
   // ─────────────────────────────────────────────────────────
   controlsZone: {
-    minHeight: 196,
+    minHeight: 172,
     width: '100%',
     backgroundColor: BOARD_COLORS.player1Soft,
     borderTopWidth: 1,
@@ -271,14 +291,20 @@ const styles = StyleSheet.create({
   },
 
   controlsZoneCompact: {
-    minHeight: 176,
+    minHeight: 146,
+  },
+
+  controlsZoneSmall: {
+    minHeight: 126,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
   },
 
   // ─────────────────────────────────────────────────────────
   // LAYOUT: Player footer — fixed bandeau, 7% height
   // ─────────────────────────────────────────────────────────
   playerFooter: {
-    minHeight: 64,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

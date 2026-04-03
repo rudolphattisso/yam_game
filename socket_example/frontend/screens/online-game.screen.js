@@ -199,7 +199,7 @@ export default function OnlineGameScreen({ navigation, route }) {
           </View>
 
           {/* ── Badges ── */}
-          <View style={styles.badgeRow}>
+          {/* <View style={styles.badgeRow}>
             <View style={styles.badge}>
               <View style={styles.badgeDot} />
               <Text style={styles.badgeText}>Match actif</Text>
@@ -207,7 +207,7 @@ export default function OnlineGameScreen({ navigation, route }) {
             <View style={[styles.badge, styles.badgeGold]}>
               <Text style={styles.badgeText}>⭐ Classement en jeu</Text>
             </View>
-          </View>
+          </View> */}
 
           {/* ── Séparateur ── */}
           <LinearGradient
@@ -368,9 +368,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingVertical: 12,
   },
 
   // 🔮 Orbes
@@ -467,6 +467,8 @@ const styles = StyleSheet.create({
   contentCard: {
     width: "100%",
     maxWidth: 520,
+    flex: 1,
+    maxHeight: "100%",
     borderRadius: 28,
     backgroundColor: C.surface,
     borderWidth: 1,
@@ -588,6 +590,8 @@ const styles = StyleSheet.create({
 
   // ── Zone contrôleur ───────────────────────────────────────────────────────
   controllerWrapper: {
+    flex: 1,
+    minHeight: 0,
     marginHorizontal: 12,
     borderRadius: 18,
     borderWidth: 1,
@@ -595,6 +599,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15, 10, 30, 0.6)",
     overflow: "hidden",
     padding: 8,
+    marginBottom: 12,
   },
 
   // ── Boutons réutilisables ─────────────────────────────────────────────────
