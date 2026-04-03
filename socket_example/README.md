@@ -1,94 +1,140 @@
-# Socket IO Example
+# Yam Master
 
-<p>
-  <!-- iOS -->
-  <a href="https://itunes.apple.com/app/apple-store/id982107779">
-    <img alt="Supports Expo iOS" longdesc="Supports Expo iOS" src="https://img.shields.io/badge/iOS-4630EB.svg?style=flat-square&logo=APPLE&labelColor=999999&logoColor=fff" />
-  </a>
-  <!-- Android -->
-  <a href="https://play.google.com/store/apps/details?id=host.exp.exponent&referrer=blankexample">
-    <img alt="Supports Expo Android" longdesc="Supports Expo Android" src="https://img.shields.io/badge/Android-4630EB.svg?style=flat-square&logo=ANDROID&labelColor=A4C639&logoColor=fff" />
-  </a>
-  <!-- Web -->
-  <a href="https://docs.expo.dev/workflow/web/">
-    <img alt="Supports Expo Web" longdesc="Supports Expo Web" src="https://img.shields.io/badge/web-4630EB.svg?style=flat-square&logo=GOOGLE-CHROME&labelColor=4285F4&logoColor=fff" />
-  </a>
-</p>
+Jeu de société multijoueur en ligne basé sur le Yam, développé avec **Expo / React Native** (frontend) et **Node.js / Socket.IO** (backend), avec une base de données **PostgreSQL**.
 
-This example shows how to connect and interact with socket-io backends.
+---
 
-## Launch your own
+## Prérequis
 
-[![Launch with Expo](https://github.com/expo/examples/blob/master/.gh-assets/launch.svg?raw=true)](https://launch.expo.dev/?github=https://github.com/expo/examples/tree/master/with-socket-io)
+| Outil | Version minimale |
+|---|---|
+| Node.js | 18+ |
+| npm | 9+ |
+| Docker & Docker Compose | v2+ |
 
-## 🚀 How to use
+---
 
-### Running the app
+## Installation
 
-- Run `yarn` or `npm install`
-- Open `App.js` and change the `socketEndpoint` at the top of the file to point to your endpoint.
-- Open `app` with `yarn start` or `npm run start` to try it out.
-
-### Running the server
-
-- `cd` into the `backend` directory and run `yarn` or `npm install`, then run `yarn start` or `npm run start`
-- Install [ngrok](https://ngrok.com/download) and run `ngrok http 3000` and copy the https url that looks something like this `https://f7333e87.ngrok.io`.
-
-## 📝 Notes
-
-React Native provides a socket-io compatible WebSocket implementation, some people get tripped up on the https requirement so this example helps to clarify how you can get it running.
-
-
-----
-# Socket Example
-
-Projet d'exemple Socket.IO avec:
-- un backend Node.js dans le dossier backend
-- un frontend Expo/React Native dans le dossier frontend
-
-## Prerequis
-
-- Node.js 18+
-- npm
-
-## Initialisation du projet
-
-Depuis la racine du workspace:
+### 1. Cloner le dépôt
 
 ```bash
-npm install
-cd backend
-npm install
-cd ../frontend
-npm install
-cd ..
+git clone <url-du-repo>
+cd socket_example
 ```
 
-## Lancer le backend
+### 2. Configurer les variables d'environnement
+
+```bash
+# Variables de la base de données et du backend
+cp .env.example .env
+
+# Variables Expo (frontend)
+cp frontend/.env.example frontend/.env
+```
+
+> Ouvre les deux fichiers `.env` et remplace les valeurs `change_me` par tes propres secrets.
+
+### 3. Installer les dépendances
+
+```bash
+# Dépendances backend
+cd backend && npm install && cd ..
+
+# Dépendances frontend
+cd frontend && npm install && cd ..
+```
+
+---
+
+## Lancer l'environnement
+
+### 1. Démarrer la base de données
+
+```bash
+docker-compose up -d
+```
+
+Cela démarre :
+- **PostgreSQL** sur le port défini dans `.env` (`POSTGRES_PORT`, par défaut `5432`)
+- **pgAdmin** sur `http://localhost:5050` (interface d'administration)
+
+Le schéma SQL (`db/init/001_schema.sql`) est appliqué automatiquement au premier démarrage.
+
+### 2. Démarrer le backend
+
+Dans un terminal :
 
 ```bash
 cd backend
-npm start
+npm run start
 ```
 
-Le serveur backend demarre sur le port defini dans backend/index.js.
+Le serveur démarre sur `http://localhost:3000`.
 
-## Lancer le frontend
+### 3. Démarrer le frontend
 
-Dans un second terminal:
+Dans un second terminal :
 
 ```bash
 cd frontend
 npx expo start
 ```
 
-Tu peux ensuite lancer l'app sur:
-- Android (emulateur ou appareil)
-- iOS (si environnement compatible)
-- Web
+Puis choisir la cible :
+- **Web** : appuyer sur `w`
+- **Android** : appuyer sur `a` (émulateur ou appareil via Expo Go)
+- **iOS** : appuyer sur `i` (macOS uniquement)
 
-## Ordre recommande
+---
 
-1. Lancer le backend
-2. Lancer le frontend
-3. Verifier l'URL du socket dans le code frontend si necessaire
+## Structure du projet
+
+```
+.
+├── backend/          # Serveur Node.js + Socket.IO + API REST
+│   ├── index.js      # Point d'entrée
+│   ├── routes/       # Routes Express (auth, games)
+│   ├── services/     # Logique métier
+│   └── db/           # Connexion PostgreSQL
+├── db/
+│   └── init/         # Scripts SQL (appliqués par Docker au démarrage)
+├── frontend/         # Application Expo / React Native
+│   ├── App.js        # Point d'entrée
+│   ├── screens/      # Écrans de l'application
+│   ├── components/   # Composants réutilisables (board, dés, grille…)
+│   ├── controllers/  # Logique de jeu côté client
+│   └── contexts/     # Contexte Socket.IO
+├── .env.example      # Modèle de configuration racine
+├── docker-compose.yml
+└── README.md
+```
+
+---
+
+## Variables d'environnement
+
+### `.env` (racine)
+
+| Variable | Description |
+|---|---|
+| `POSTGRES_DB` | Nom de la base de données |
+| `POSTGRES_USER` | Utilisateur PostgreSQL |
+| `POSTGRES_PASSWORD` | Mot de passe PostgreSQL |
+| `POSTGRES_PORT` | Port exposé par Docker |
+| `DATABASE_URL` | URL de connexion complète (utilisée par le backend) |
+| `PORT` | Port du serveur backend |
+| `JWT_SECRET` | Clé secrète pour la signature des tokens JWT |
+| `ACCESS_TOKEN_TTL` | Durée de vie du token d'accès (ex: `15m`) |
+| `REFRESH_TOKEN_TTL` | Durée de vie du refresh token (ex: `7d`) |
+| `CORS_ALLOWED_ORIGINS` | Origines autorisées par le backend |
+| `PGADMIN_DEFAULT_EMAIL` | Email de connexion pgAdmin |
+| `PGADMIN_DEFAULT_PASSWORD` | Mot de passe pgAdmin |
+| `PGADMIN_PORT` | Port exposé pour pgAdmin |
+
+### `frontend/.env`
+
+| Variable | Description |
+|---|---|
+| `EXPO_PUBLIC_SOCKET_URL` | URL du serveur Socket.IO |
+| `EXPO_PUBLIC_API_URL` | URL de l'API REST backend |

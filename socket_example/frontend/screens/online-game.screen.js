@@ -1,8 +1,8 @@
 // app/screens/online-game.screen.js
 
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
-import { Alert, Platform, StyleSheet, View, Text, Pressable, Modal, ScrollView } from "react-native";
+import { Alert, Animated, Platform, StyleSheet, View, Text, Pressable, Modal, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { SocketContext } from "../contexts/socket.context";
@@ -11,6 +11,14 @@ import OnlineGameController from "../controllers/online-game.controller";
 export default function OnlineGameScreen({ navigation, route }) {
   const socket = useContext(SocketContext);
   const [rulesModalVisible, setRulesModalVisible] = useState(false);
+  const [gameEndData, setGameEndData] = useState(null);
+  const [isReplaying, setIsReplaying] = useState(false);
+  const endCardOpacity = useRef(new Animated.Value(0)).current;
+  const endCardScale = useRef(new Animated.Value(0.92)).current;
+  const replayButtonTranslateY = useRef(new Animated.Value(16)).current;
+  const replayButtonOpacity = useRef(new Animated.Value(0)).current;
+  const quitButtonTranslateY = useRef(new Animated.Value(22)).current;
+  const quitButtonOpacity = useRef(new Animated.Value(0)).current;
   const playerName = route?.params?.playerName || route?.params?.displayName || 'Joueur';
   const isAuthenticated = route?.params?.isAuthenticated === true;
   const userId = route?.params?.user?.id;
@@ -33,6 +41,31 @@ export default function OnlineGameScreen({ navigation, route }) {
     navigateHome();
   };
 
+  const requestReplay = () => {
+    if (!socket || isReplaying) {
+      return;
+    }
+
+    setIsReplaying(true);
+    setGameEndData(null);
+
+    socket.emit("queue.join", {
+      playerName,
+      isAuthenticated,
+      userId: isAuthenticated ? userId : undefined,
+      sessionId: clientSessionId,
+    });
+
+    setTimeout(() => {
+      setIsReplaying(false);
+    }, 1200);
+  };
+
+  const quitAfterGameEnd = () => {
+    setGameEndData(null);
+    leaveGame();
+  };
+
   const handleOpponentLeft = () => {
     if (Platform.OS === "web") {
       globalThis.alert("Votre adversaire s'est déconnecté ou a perdu la session.");
@@ -47,39 +80,70 @@ export default function OnlineGameScreen({ navigation, route }) {
   };
 
   const handleGameEnd = (data) => {
-    let winnerLabel = "Partie terminée";
-    if (data?.winner === "draw") {
-      winnerLabel = "Match nul 🤝";
-    } else {
-      winnerLabel = data?.isWinner ? "Victoire ! 🏆" : "Défaite 😤";
-    }
+    setGameEndData(data ?? {});
+  };
 
-    const reasonLabel =
-      data?.reason === "five-aligned"
-        ? "5 pions alignés !"
-        : data?.reason === "no-pawns-left"
-        ? "Plus de pions disponibles"
-        : "";
-
-    const message = [
-      winnerLabel,
-      reasonLabel,
-      `Ton score : ${data?.playerScore ?? 0}`,
-      `Score adverse : ${data?.opponentScore ?? 0}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    if (Platform.OS === "web") {
-      globalThis.alert(message);
-      navigateHome();
+  useEffect(() => {
+    if (gameEndData === null) {
       return;
     }
 
-    Alert.alert("Fin de partie", message, [
-      { text: "OK", onPress: navigateHome },
-    ]);
-  };
+    endCardOpacity.setValue(0);
+    endCardScale.setValue(0.92);
+    replayButtonTranslateY.setValue(16);
+    replayButtonOpacity.setValue(0);
+    quitButtonTranslateY.setValue(22);
+    quitButtonOpacity.setValue(0);
+
+    Animated.parallel([
+      Animated.timing(endCardOpacity, {
+        toValue: 1,
+        duration: 240,
+        useNativeDriver: true,
+      }),
+      Animated.spring(endCardScale, {
+        toValue: 1,
+        friction: 8,
+        tension: 80,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.delay(90),
+        Animated.parallel([
+          Animated.timing(replayButtonTranslateY, {
+            toValue: 0,
+            duration: 210,
+            useNativeDriver: true,
+          }),
+          Animated.timing(replayButtonOpacity, {
+            toValue: 1,
+            duration: 210,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(quitButtonTranslateY, {
+            toValue: 0,
+            duration: 210,
+            useNativeDriver: true,
+          }),
+          Animated.timing(quitButtonOpacity, {
+            toValue: 1,
+            duration: 210,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
+    ]).start();
+  }, [
+    endCardOpacity,
+    endCardScale,
+    gameEndData,
+    quitButtonOpacity,
+    quitButtonTranslateY,
+    replayButtonOpacity,
+    replayButtonTranslateY,
+  ]);
 
   const confirmLeaveGame = () => {
     if (Platform.OS === "web" && typeof globalThis.confirm === "function") {
@@ -231,6 +295,147 @@ export default function OnlineGameScreen({ navigation, route }) {
 
         </View>
       )}
+
+      {/* ── Modal Fin de partie ── */}
+      {gameEndData !== null && (() => {
+        const isDraw   = gameEndData?.winner === "draw";
+        const isWinner = !isDraw && gameEndData?.isWinner;
+        const isLoser  = !isDraw && !isWinner;
+
+        const icon   = isDraw ? "remove-circle-outline" : isWinner ? "trophy"        : "skull-outline";
+        const accent = isDraw ? C.textMuted             : isWinner ? C.gold          : C.pink;
+        const gradColors = isDraw
+          ? ["#1A1654", "#232060", "#1A1654"]
+          : isWinner
+          ? ["#1C1500", "#2E2000", "#1C1500"]
+          : ["#1A0A1A", "#280D1A", "#1A0A1A"];
+
+        const title   = isDraw ? "Match nul"  : isWinner ? "Victoire !"  : "Défaite";
+        const subtitle = isDraw
+          ? "Les deux joueurs sont à égalité."
+          : isWinner
+          ? "Félicitations, tu as dominé cette partie !"
+          : "Ne baisse pas les bras, la revanche t'attend.";
+
+        const reason =
+          gameEndData?.reason === "five-aligned"   ? "5 pions alignés"          :
+          gameEndData?.reason === "no-pawns-left"  ? "Plus de pions disponibles" : null;
+
+        const playerScore   = gameEndData?.playerScore   ?? 0;
+        const opponentScore = gameEndData?.opponentScore ?? 0;
+
+        return (
+          <Modal visible animationType="fade" transparent statusBarTranslucent>
+            <View style={styles.endOverlay}>
+              <LinearGradient
+                colors={["rgba(15,10,30,0.92)", "rgba(10,6,22,0.97)"]}
+                style={StyleSheet.absoluteFill}
+              />
+
+              {/* Orbe décoratif */}
+              <View style={[styles.endOrb, { backgroundColor: accent, opacity: 0.18 }]} />
+
+              <Animated.View
+                style={[
+                  styles.endCard,
+                  {
+                    opacity: endCardOpacity,
+                    transform: [{ scale: endCardScale }],
+                  },
+                ]}
+              >
+                {/* Barre colorée */}
+                <LinearGradient
+                  colors={isDraw ? [C.textMuted, C.border] : isWinner ? [C.gold, "#F59E0B"] : [C.pink, C.primaryDark]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={styles.endTopBar}
+                />
+
+                {/* Fond de la carte */}
+                <LinearGradient colors={gradColors} style={styles.endCardInner}>
+
+                  {/* Icône */}
+                  <View style={[styles.endIconRing, { borderColor: accent }]}>
+                    <Ionicons name={icon} size={48} color={accent} />
+                  </View>
+
+                  {/* Titre */}
+                  <Text style={[styles.endTitle, { color: accent }]}>{title}</Text>
+                  <Text style={styles.endSubtitle}>{subtitle}</Text>
+
+                  {/* Raison */}
+                  {reason && (
+                    <View style={[styles.endReasonBadge, { borderColor: accent }]}>
+                      <Ionicons name="flag-outline" size={13} color={accent} style={{ marginRight: 5 }} />
+                      <Text style={[styles.endReasonText, { color: accent }]}>{reason}</Text>
+                    </View>
+                  )}
+
+                  {/* Scores */}
+                  <View style={styles.endScoreRow}>
+                    <View style={styles.endScoreBox}>
+                      <Text style={styles.endScoreLabel}>Ton score</Text>
+                      <Text style={[styles.endScoreValue, { color: isWinner ? C.gold : C.textPrimary }]}>
+                        {playerScore}
+                      </Text>
+                    </View>
+                    <View style={styles.endScoreDivider} />
+                    <View style={styles.endScoreBox}>
+                      <Text style={styles.endScoreLabel}>Adversaire</Text>
+                      <Text style={[styles.endScoreValue, { color: isLoser ? C.pink : C.textPrimary }]}>
+                        {opponentScore}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Actions */}
+                  <Animated.View
+                    style={{
+                      width: "100%",
+                      opacity: replayButtonOpacity,
+                      transform: [{ translateY: replayButtonTranslateY }],
+                    }}
+                  >
+                    <Pressable
+                      style={({ pressed }) => [styles.endBtn, pressed && { opacity: 0.75 }, isReplaying && { opacity: 0.6 }]}
+                      onPress={requestReplay}
+                      disabled={isReplaying}
+                      android_ripple={{ color: "rgba(168,85,247,0.3)" }}
+                    >
+                      <LinearGradient
+                        colors={[C.primaryDark, C.primary]}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={styles.endBtnGradient}
+                      >
+                        <Ionicons name="refresh" size={18} color="#fff" style={{ marginRight: 8 }} />
+                        <Text style={styles.endBtnText}>{isReplaying ? "Recherche d'une partie..." : "Rejouer"}</Text>
+                      </LinearGradient>
+                    </Pressable>
+                  </Animated.View>
+
+                  <Animated.View
+                    style={{
+                      width: "100%",
+                      opacity: quitButtonOpacity,
+                      transform: [{ translateY: quitButtonTranslateY }],
+                    }}
+                  >
+                    <Pressable
+                      style={({ pressed }) => [styles.endBtnSecondary, pressed && { opacity: 0.75 }]}
+                      onPress={quitAfterGameEnd}
+                      android_ripple={{ color: "rgba(236,72,153,0.2)" }}
+                    >
+                      <Ionicons name="exit-outline" size={17} color={C.pink} style={{ marginRight: 8 }} />
+                      <Text style={styles.endBtnSecondaryText}>Quitter</Text>
+                    </Pressable>
+                  </Animated.View>
+
+                </LinearGradient>
+              </Animated.View>
+            </View>
+          </Modal>
+        );
+      })()}
 
       {/* ── Modal Règles ── */}
       <Modal
@@ -702,5 +907,157 @@ const styles = StyleSheet.create({
   },
   rulesFooter: {
     height: 16,
+  },
+
+  // ── Modal Fin de partie ───────────────────────────────────────────────────
+  endOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  endOrb: {
+    position: "absolute",
+    width: 320,
+    height: 320,
+    borderRadius: 999,
+    top: "25%",
+    alignSelf: "center",
+  },
+  endCard: {
+    width: "100%",
+    maxWidth: 400,
+    borderRadius: 28,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: C.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.6,
+    shadowRadius: 32,
+    elevation: 24,
+  },
+  endTopBar: {
+    height: 5,
+    width: "100%",
+  },
+  endCardInner: {
+    alignItems: "center",
+    paddingHorizontal: 28,
+    paddingTop: 32,
+    paddingBottom: 28,
+  },
+  endIconRing: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 2,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  endTitle: {
+    fontSize: 34,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  endSubtitle: {
+    color: C.textMuted,
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 18,
+    paddingHorizontal: 8,
+  },
+  endReasonBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    marginBottom: 24,
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  endReasonText: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+  },
+  endScoreRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    marginBottom: 28,
+    overflow: "hidden",
+  },
+  endScoreBox: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 16,
+  },
+  endScoreDivider: {
+    width: 1,
+    height: "70%",
+    backgroundColor: C.border,
+  },
+  endScoreLabel: {
+    color: C.textFaint,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  endScoreValue: {
+    fontSize: 36,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+  },
+  endBtn: {
+    width: "100%",
+    borderRadius: 16,
+    overflow: "hidden",
+    minHeight: 52,
+  },
+  endBtnGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 15,
+    paddingHorizontal: 24,
+    minHeight: 52,
+  },
+  endBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+  },
+  endBtnSecondary: {
+    width: "100%",
+    marginTop: 10,
+    minHeight: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.pink,
+    backgroundColor: "rgba(236,72,153,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+  },
+  endBtnSecondaryText: {
+    color: C.pink,
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0.4,
   },
 });
