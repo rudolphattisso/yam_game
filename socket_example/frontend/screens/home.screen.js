@@ -131,7 +131,7 @@ export default function HomeScreen({ navigation, route }) {
             style={({ pressed }) => [styles.loginLinkWrapper, pressed && { opacity: 0.7 }]}
           >
             <Text style={styles.loginLinkText}>
-              Vous avez deja un compte ? <Text style={styles.loginLinkTextStrong}>Se connecter</Text>
+              Vous avez déjà un compte ? <Text style={styles.loginLinkTextStrong}>Se connecter</Text>
             </Text>
           </Pressable>
         )}

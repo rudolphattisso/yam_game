@@ -324,7 +324,7 @@ export default function LoginScreen({ navigation, route }) {
                             onPress={handleGuestMode}
                         >
                             <Text style={styles.guestLinkText}>
-                                Continuer sans compte ? <Text style={styles.guestLinkTextStrong}>Mode invité</Text>
+                                Vous n'avez pas de compte ? <Text style={styles.guestLinkTextStrong}>Mode invité</Text>
                             </Text>
                         </Pressable>
 
