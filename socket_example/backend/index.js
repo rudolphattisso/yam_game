@@ -108,6 +108,19 @@ const removeSocketFromQueue = (socketId) => {
   queue = queue.filter((queuedSocket) => queuedSocket.id !== socketId);
 };
 
+const sanitizeDisplayName = (value, fallback) => {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+
+  return trimmed.slice(0, 32);
+};
+
 const passTurn = (game) => {
   game.gameState.currentTurn = game.gameState.currentTurn === 'player:1' ? 'player:2' : 'player:1';
   game.gameState.timer = GameService.timer.getTurnDuration();
@@ -473,6 +486,10 @@ const createGame = (player1Socket, player2Socket, options = {}) => {
   newGame['player1Socket'] = player1Socket;
   newGame['player2Socket'] = player2Socket;
   newGame['isVsBot'] = options.isVsBot === true;
+  newGame['player1Name'] = sanitizeDisplayName(player1Socket.data?.displayName, `Player-${player1Socket.id.slice(0, 6)}`);
+  newGame['player2Name'] = newGame.isVsBot
+    ? 'BOT'
+    : sanitizeDisplayName(player2Socket.data?.displayName, `Player-${player2Socket.id.slice(0, 6)}`);
 
   games.push(newGame);
 
@@ -535,12 +552,14 @@ io.on('connection', socket => {
 
   console.log(`[${socket.id}] socket connected`);
 
-  socket.on('queue.join', () => {
+  socket.on('queue.join', (payload = {}) => {
+    socket.data.displayName = sanitizeDisplayName(payload.playerName, `Player-${socket.id.slice(0, 6)}`);
     console.log(`[${socket.id}] new player in queue `);
     newPlayerInQueue(socket);
   });
 
-  socket.on('queue.bot.join', () => {
+  socket.on('queue.bot.join', (payload = {}) => {
+    socket.data.displayName = sanitizeDisplayName(payload.playerName, `Player-${socket.id.slice(0, 6)}`);
     console.log(`[${socket.id}] new player vs bot`);
     newPlayerVsBot(socket);
   });

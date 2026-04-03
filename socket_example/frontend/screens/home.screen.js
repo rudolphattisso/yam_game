@@ -77,7 +77,9 @@ export default function HomeScreen({ navigation, route }) {
               isOnlineHovered && styles.buttonHovered,
               pressed && styles.buttonPressed,
             ]}
-            onPress={() => navigation.navigate("OnlineGameScreen")}
+            onPress={() => navigation.navigate("OnlineGameScreen", {
+              playerName: displayName || 'Joueur',
+            })}
             onHoverIn={() => setIsOnlineHovered(true)}
             onHoverOut={() => setIsOnlineHovered(false)}
           >

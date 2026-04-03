@@ -19,6 +19,16 @@ export default function LoginScreen({ navigation, route }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState('');
 
+    const resetFormFields = () => {
+        setIdentifier('');
+        setUsername('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        setFocusedInput(null);
+        setFormError('');
+    };
+
     const isRegisterMode = formMode === 'register';
     const title = isRegisterMode ? '✨ Créer un compte' : '👾 Connexion';
     const actionLabel = isRegisterMode ? 'CRÉER MON COMPTE' : 'SE CONNECTER';
@@ -74,6 +84,10 @@ export default function LoginScreen({ navigation, route }) {
                 return;
             }
 
+            if (isRegisterMode) {
+                resetFormFields();
+            }
+
             navigation.navigate('HomeScreen', {
                 userMode: 'connected',
                 authMode: formMode,
@@ -91,13 +105,7 @@ export default function LoginScreen({ navigation, route }) {
 
     const handleSwitchMode = (nextMode) => {
         setFormMode(nextMode);
-        setIdentifier('');
-        setUsername('');
-        setEmail('');
-        setPassword('');
-        setConfirmPassword('');
-        setFocusedInput(null);
-        setFormError('');
+        resetFormFields();
     };
 
     return (

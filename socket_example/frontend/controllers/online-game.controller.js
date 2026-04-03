@@ -150,6 +150,19 @@ function GameFoundView({ idOpponent }) {
   );
 }
 
+const normalizeDisplayName = (value, fallback) => {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+
+  return trimmed.slice(0, 32);
+};
+
 // ─── Controller ───────────────────────────────────────────────────────────────
 export default function OnlineGameController({
   onOpponentLeft = null,
@@ -158,6 +171,7 @@ export default function OnlineGameController({
   waitingStatusMessage = "Veuillez patienter, un adversaire va se connecter...",
   hideWaitingUi = false,
   displayGameFoundSplash = false,
+  localPlayerName = "Joueur",
 }) {
   const socket = useContext(SocketContext);
 
@@ -165,6 +179,12 @@ export default function OnlineGameController({
   const [inGame,         setInGame]         = useState(false);
   const [idOpponent,     setIdOpponent]     = useState(null);
   const [statusMessage,  setStatusMessage]  = useState(waitingStatusMessage);
+  const [playerName,     setPlayerName]     = useState(normalizeDisplayName(localPlayerName, "Joueur"));
+  const [opponentName,   setOpponentName]   = useState("Adversaire");
+
+  useEffect(() => {
+    setPlayerName(normalizeDisplayName(localPlayerName, "Joueur"));
+  }, [localPlayerName]);
 
   useEffect(() => {
     const onQueueAdded = (data) => {
@@ -178,6 +198,8 @@ export default function OnlineGameController({
       setInGame(data["inGame"]);
       setIdOpponent(data["idOpponent"]);
       setStatusMessage("Adversaire trouve !");
+      setPlayerName(normalizeDisplayName(data?.playerName, normalizeDisplayName(localPlayerName, "Joueur")));
+      setOpponentName(normalizeDisplayName(data?.opponentName, "Adversaire"));
     };
     const handleOpponentLeft = () => { if (onOpponentLeft) onOpponentLeft(); };
     const handleGameEnd = (data) => {
@@ -191,7 +213,9 @@ export default function OnlineGameController({
     socket.on("game.opponent.left",  handleOpponentLeft);
     socket.on("game.end",            handleGameEnd);
 
-    socket.emit(joinEvent);
+    socket.emit(joinEvent, {
+      playerName: normalizeDisplayName(localPlayerName, "Joueur"),
+    });
     // Show waiting state immediately in online mode while server confirms queue status.
     setInQueue(!hideWaitingUi && joinEvent === "queue.join");
     setInGame(false);
@@ -223,6 +247,19 @@ export default function OnlineGameController({
       {inGame && (
         <View style={styles.boardWrapper}>
           {displayGameFoundSplash && <GameFoundView idOpponent={idOpponent} />}
+
+          <View style={styles.matchupNotice}>
+            <View style={styles.matchupPlayerTag}>
+              <Text style={styles.matchupPlayerLabel}>Vous</Text>
+              <Text style={styles.matchupPlayerName}>{playerName}</Text>
+            </View>
+            <Text style={styles.matchupVs}>VS</Text>
+            <View style={[styles.matchupPlayerTag, styles.matchupOpponentTag]}>
+              <Text style={styles.matchupPlayerLabel}>Adversaire</Text>
+              <Text style={[styles.matchupPlayerName, styles.matchupOpponentName]}>{opponentName}</Text>
+            </View>
+          </View>
+
           <Board />
         </View>
       )}
@@ -412,6 +449,48 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900",
   },
+
+  matchupNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 12,
+    flexWrap: "wrap",
+    paddingHorizontal: 8,
+  },
+  matchupPlayerTag: {
+    minWidth: 120,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(212,175,55,0.35)",
+    backgroundColor: "rgba(122,17,17,0.2)",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    alignItems: "center",
+  },
+  matchupOpponentTag: {
+    backgroundColor: "rgba(42,95,53,0.2)",
+  },
+  matchupPlayerLabel: {
+    color: C.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  matchupPlayerName: {
+    color: C.text,
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+  matchupOpponentName: {
+    color: C.goldLight,
+  },
+  matchupVs: {
+    color: C.gold,
+    fontSize: 12,
+    fontWeight: "900",
+  },
 });
 
 OnlineGameController.propTypes = {
@@ -421,6 +500,7 @@ OnlineGameController.propTypes = {
   waitingStatusMessage: PropTypes.string,
   hideWaitingUi: PropTypes.bool,
   displayGameFoundSplash: PropTypes.bool,
+  localPlayerName: PropTypes.string,
 };
 GameFoundView.propTypes = {
   idOpponent: PropTypes.string,

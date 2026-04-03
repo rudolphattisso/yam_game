@@ -8,8 +8,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { SocketContext } from "../contexts/socket.context";
 import OnlineGameController from "../controllers/online-game.controller";
 
-export default function OnlineGameScreen({ navigation }) {
+export default function OnlineGameScreen({ navigation, route }) {
   const socket = useContext(SocketContext);
+  const playerName = route?.params?.playerName || route?.params?.displayName || 'Joueur';
 
   const leaveGame = () => {
     socket.emit("game.leave");
@@ -191,6 +192,7 @@ export default function OnlineGameScreen({ navigation }) {
             <OnlineGameController
               onOpponentLeft={handleOpponentLeft}
               onGameEnd={handleGameEnd}
+              localPlayerName={playerName}
             />
           </View>
 
@@ -204,6 +206,16 @@ OnlineGameScreen.propTypes = {
   navigation: PropTypes.shape({
     navigate: PropTypes.func.isRequired,
   }).isRequired,
+  route: PropTypes.shape({
+    params: PropTypes.shape({
+      playerName: PropTypes.string,
+      displayName: PropTypes.string,
+    }),
+  }),
+};
+
+OnlineGameScreen.defaultProps = {
+  route: undefined,
 };
 
 // ─── Design Tokens (identiques à start.screen) ────────────────────────────────

@@ -133,7 +133,15 @@ const GameService = {
                     idOpponent:
                         (playerKey === 'player:1')
                             ? game.player2Socket.id
-                            : game.player1Socket.id
+                            : game.player1Socket.id,
+                    playerName:
+                        (playerKey === 'player:1')
+                            ? game.player1Name
+                            : game.player2Name,
+                    opponentName:
+                        (playerKey === 'player:1')
+                            ? game.player2Name
+                            : game.player1Name
                 };
             },
 
