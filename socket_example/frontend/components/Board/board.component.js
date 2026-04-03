@@ -67,6 +67,11 @@ const Board = ({ gameViewState, playerName, opponentName }) => {
     playerRemainingPawns: 12,
     opponentRemainingPawns: 12,
   });
+  const [boardSections, setBoardSections] = useState({
+    displayOpponentDeck: false,
+    displayPlayerDeck: false,
+    displayChoices: false,
+  });
   const isCompactLayout = width < 900 || height < 760;
   const isSmallMobileLayout = width < 520 || height < 720;
 
@@ -97,24 +102,60 @@ const Board = ({ gameViewState, playerName, opponentName }) => {
       />
 
       {/* LAYOUT: Opponent deck zone */}
-      <View style={[styles.opponentDeckZone, isSmallMobileLayout && styles.opponentDeckZoneCompact]}>
-        <OpponentDeck />
+      <View style={[
+        styles.opponentDeckZone,
+        isSmallMobileLayout && styles.opponentDeckZoneCompact,
+        !boardSections.displayOpponentDeck && styles.collapsedSection,
+      ]}>
+        <OpponentDeck
+          onVisibilityChange={(visible) => {
+            setBoardSections((previous) => ({ ...previous, displayOpponentDeck: visible }));
+          }}
+        />
       </View>
 
       {/* LAYOUT: Central game area with responsive grid + choices */}
-      <View style={[styles.gameArea, isCompactLayout && styles.gameAreaCompact, isSmallMobileLayout && styles.gameAreaSmall]}>
-        <View style={[styles.gridPanel, isCompactLayout && styles.gridPanelCompact]}>
+      <View style={[
+        styles.gameArea,
+        isCompactLayout && styles.gameAreaCompact,
+        isSmallMobileLayout && styles.gameAreaSmall,
+        !boardSections.displayOpponentDeck && styles.gameAreaWithoutOpponentDeck,
+        !boardSections.displayPlayerDeck && styles.gameAreaWithoutPlayerDeck,
+      ]}>
+        <View style={[
+          styles.gridPanel,
+          isCompactLayout && styles.gridPanelCompact,
+          !boardSections.displayChoices && styles.gridPanelExpanded,
+        ]}>
           <Grid />
         </View>
 
-        <View style={[styles.choicesPanel, isCompactLayout && styles.choicesPanelCompact, isSmallMobileLayout && styles.choicesPanelSmall]}>
-          <Choices />
+        <View style={[
+          styles.choicesPanel,
+          isCompactLayout && styles.choicesPanelCompact,
+          isSmallMobileLayout && styles.choicesPanelSmall,
+          !boardSections.displayChoices && styles.collapsedChoicesPanel,
+        ]}>
+          <Choices
+            onVisibilityChange={(visible) => {
+              setBoardSections((previous) => ({ ...previous, displayChoices: visible }));
+            }}
+          />
         </View>
       </View>
 
       {/* LAYOUT: Player controls zone — fixed, stacked vertically */}
-      <View style={[styles.controlsZone, isCompactLayout && styles.controlsZoneCompact, isSmallMobileLayout && styles.controlsZoneSmall]}>
-        <PlayerDeck />
+      <View style={[
+        styles.controlsZone,
+        isCompactLayout && styles.controlsZoneCompact,
+        isSmallMobileLayout && styles.controlsZoneSmall,
+        !boardSections.displayPlayerDeck && styles.collapsedSection,
+      ]}>
+        <PlayerDeck
+          onVisibilityChange={(visible) => {
+            setBoardSections((previous) => ({ ...previous, displayPlayerDeck: visible }));
+          }}
+        />
       </View>
 
       {/* LAYOUT: Player footer bandeau — fixed height, no overflow */}
@@ -215,6 +256,15 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
 
+  collapsedSection: {
+    minHeight: 0,
+    height: 0,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    borderWidth: 0,
+    overflow: 'hidden',
+  },
+
   // ─────────────────────────────────────────────────────────
   // LAYOUT: Central game area — grid dominant, choices sidebar
   // ─────────────────────────────────────────────────────────
@@ -240,6 +290,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
+  gameAreaWithoutOpponentDeck: {
+    paddingTop: 4,
+  },
+
+  gameAreaWithoutPlayerDeck: {
+    paddingBottom: 4,
+  },
+
   gridPanel: {
     flex: 3.4,
     alignItems: 'center',
@@ -250,6 +308,10 @@ const styles = StyleSheet.create({
 
   gridPanelCompact: {
     width: '100%',
+    flex: 1,
+  },
+
+  gridPanelExpanded: {
     flex: 1,
   },
 
@@ -272,6 +334,16 @@ const styles = StyleSheet.create({
   choicesPanelSmall: {
     minHeight: 110,
     maxHeight: 138,
+  },
+
+  collapsedChoicesPanel: {
+    flex: 0,
+    width: 0,
+    minWidth: 0,
+    maxWidth: 0,
+    minHeight: 0,
+    maxHeight: 0,
+    overflow: 'hidden',
   },
 
   // ─────────────────────────────────────────────────────────

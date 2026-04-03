@@ -1,9 +1,10 @@
 // app/components/board/choices/choices.component.js
 import React, { useContext, useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SocketContext } from '../../../contexts/socket.context';
 
-const Choices = () => {
+const Choices = ({ onVisibilityChange }) => {
 
     const socket = useContext(SocketContext);
 
@@ -29,6 +30,12 @@ const Choices = () => {
 
     }, [socket]);
 
+    useEffect(() => {
+        if (onVisibilityChange) {
+            onVisibilityChange(displayChoices);
+        }
+    }, [displayChoices, onVisibilityChange]);
+
     const handleSelectChoice = (choiceId, isSelectable) => {
 
         if (canMakeChoice && isSelectable) {
@@ -37,6 +44,10 @@ const Choices = () => {
         }
 
     };
+
+    if (!displayChoices) {
+        return null;
+    }
 
     return (
         <View style={styles.choicesContainer}>
@@ -145,3 +156,11 @@ const styles = StyleSheet.create({
 });
 
 export default Choices;
+
+Choices.propTypes = {
+    onVisibilityChange: PropTypes.func,
+};
+
+Choices.defaultProps = {
+    onVisibilityChange: null,
+};

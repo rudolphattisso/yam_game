@@ -2,11 +2,12 @@
 // LAYOUT: Controls zone — stacked vertically with proper spacing
 
 import React, { useState, useContext, useEffect } from "react";
+import PropTypes from "prop-types";
 import { View, TouchableOpacity, Text, StyleSheet, useWindowDimensions } from "react-native";
 import { SocketContext } from "../../../contexts/socket.context";
 import Dice from "./dices.component";
 
-const PlayerDeck = () => {
+const PlayerDeck = ({ onVisibilityChange }) => {
   const socket = useContext(SocketContext);
   const { width } = useWindowDimensions();
   const [displayPlayerDeck, setDisplayPlayerDeck] = useState(false);
@@ -33,6 +34,12 @@ const PlayerDeck = () => {
       socket.off("game.deck.view-state", onDeckViewState);
     };
   }, [socket]);
+
+  useEffect(() => {
+    if (onVisibilityChange) {
+      onVisibilityChange(displayPlayerDeck);
+    }
+  }, [displayPlayerDeck, onVisibilityChange]);
 
   const toggleDiceLock = (index) => {
     const newDices = [...dices];
@@ -194,3 +201,11 @@ const styles = StyleSheet.create({
 });
 
 export default PlayerDeck;
+
+PlayerDeck.propTypes = {
+  onVisibilityChange: PropTypes.func,
+};
+
+PlayerDeck.defaultProps = {
+  onVisibilityChange: null,
+};

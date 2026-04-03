@@ -1,12 +1,13 @@
 // app/components/board/decks/opponent-deck.component.js
 
 import React, { useState, useContext, useEffect } from "react";
+import PropTypes from "prop-types";
 import { View, StyleSheet, useWindowDimensions } from "react-native";
 import { SocketContext } from "../../../contexts/socket.context";
 import Dice from "./dices.component";
 import { BOARD_COLORS } from "../board-colors";
 
-const OpponentDeck = () => {
+const OpponentDeck = ({ onVisibilityChange }) => {
 
   const socket = useContext(SocketContext);
   const { width } = useWindowDimensions();
@@ -30,20 +31,28 @@ const OpponentDeck = () => {
     };
   }, [socket]);
 
+  useEffect(() => {
+    if (onVisibilityChange) {
+      onVisibilityChange(displayOpponentDeck);
+    }
+  }, [displayOpponentDeck, onVisibilityChange]);
+
+  if (!displayOpponentDeck) {
+    return null;
+  }
+
   return (
     <View style={styles.deckOpponentContainer}>
-      {displayOpponentDeck && (
-        <View style={[styles.diceContainer, isSmallScreen && styles.diceContainerCompact]}>
-          {opponentDices.map((diceData, index) => (
-            <Dice
-              key={diceData.id ?? index}
-              locked={diceData.locked}
-              value={diceData.value}
-              opponent={true}
-            />
-          ))}
-        </View>
-      )}
+      <View style={[styles.diceContainer, isSmallScreen && styles.diceContainerCompact]}>
+        {opponentDices.map((diceData, index) => (
+          <Dice
+            key={diceData.id ?? index}
+            locked={diceData.locked}
+            value={diceData.value}
+            opponent={true}
+          />
+        ))}
+      </View>
     </View>
   );
 };
@@ -75,3 +84,11 @@ const styles = StyleSheet.create({
 });
 
 export default OpponentDeck;
+
+OpponentDeck.propTypes = {
+  onVisibilityChange: PropTypes.func,
+};
+
+OpponentDeck.defaultProps = {
+  onVisibilityChange: null,
+};
