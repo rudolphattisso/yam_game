@@ -12,13 +12,10 @@ export default function OnlineGameScreen({ navigation, route }) {
   const socket = useContext(SocketContext);
   const [rulesModalVisible, setRulesModalVisible] = useState(false);
   const [gameEndData, setGameEndData] = useState(null);
-  const [isReplaying, setIsReplaying] = useState(false);
   const endCardOpacity = useRef(new Animated.Value(0)).current;
   const endCardScale = useRef(new Animated.Value(0.92)).current;
-  const replayButtonTranslateY = useRef(new Animated.Value(16)).current;
-  const replayButtonOpacity = useRef(new Animated.Value(0)).current;
-  const quitButtonTranslateY = useRef(new Animated.Value(22)).current;
-  const quitButtonOpacity = useRef(new Animated.Value(0)).current;
+  const endActionTranslateY = useRef(new Animated.Value(18)).current;
+  const endActionOpacity = useRef(new Animated.Value(0)).current;
   const playerName = route?.params?.playerName || route?.params?.displayName || 'Joueur';
   const isAuthenticated = route?.params?.isAuthenticated === true;
   const userId = route?.params?.user?.id;
@@ -39,26 +36,6 @@ export default function OnlineGameScreen({ navigation, route }) {
   const leaveGame = () => {
     socket.emit("game.leave");
     navigateHome();
-  };
-
-  const requestReplay = () => {
-    if (!socket || isReplaying) {
-      return;
-    }
-
-    setIsReplaying(true);
-    setGameEndData(null);
-
-    socket.emit("queue.join", {
-      playerName,
-      isAuthenticated,
-      userId: isAuthenticated ? userId : undefined,
-      sessionId: clientSessionId,
-    });
-
-    setTimeout(() => {
-      setIsReplaying(false);
-    }, 1200);
   };
 
   const quitAfterGameEnd = () => {
@@ -84,16 +61,47 @@ export default function OnlineGameScreen({ navigation, route }) {
   };
 
   useEffect(() => {
+    const previewOutcome = route?.params?.previewGameEndOutcome;
+    if (!previewOutcome) {
+      return;
+    }
+
+    const previewPresets = {
+      win: {
+        winner: "player:1",
+        isWinner: true,
+        reason: "five-aligned",
+        playerScore: 9,
+        opponentScore: 4,
+      },
+      lose: {
+        winner: "player:2",
+        isWinner: false,
+        reason: "no-pawns-left",
+        playerScore: 3,
+        opponentScore: 7,
+      },
+      draw: {
+        winner: "draw",
+        isWinner: false,
+        reason: null,
+        playerScore: 6,
+        opponentScore: 6,
+      },
+    };
+
+    setGameEndData(previewPresets[previewOutcome] || previewPresets.win);
+  }, [route?.params?.previewGameEndOutcome]);
+
+  useEffect(() => {
     if (gameEndData === null) {
       return;
     }
 
     endCardOpacity.setValue(0);
     endCardScale.setValue(0.92);
-    replayButtonTranslateY.setValue(16);
-    replayButtonOpacity.setValue(0);
-    quitButtonTranslateY.setValue(22);
-    quitButtonOpacity.setValue(0);
+    endActionTranslateY.setValue(18);
+    endActionOpacity.setValue(0);
 
     Animated.parallel([
       Animated.timing(endCardOpacity, {
@@ -108,26 +116,14 @@ export default function OnlineGameScreen({ navigation, route }) {
         useNativeDriver: true,
       }),
       Animated.sequence([
-        Animated.delay(90),
+        Animated.delay(110),
         Animated.parallel([
-          Animated.timing(replayButtonTranslateY, {
+          Animated.timing(endActionTranslateY, {
             toValue: 0,
             duration: 210,
             useNativeDriver: true,
           }),
-          Animated.timing(replayButtonOpacity, {
-            toValue: 1,
-            duration: 210,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.parallel([
-          Animated.timing(quitButtonTranslateY, {
-            toValue: 0,
-            duration: 210,
-            useNativeDriver: true,
-          }),
-          Animated.timing(quitButtonOpacity, {
+          Animated.timing(endActionOpacity, {
             toValue: 1,
             duration: 210,
             useNativeDriver: true,
@@ -136,13 +132,11 @@ export default function OnlineGameScreen({ navigation, route }) {
       ]),
     ]).start();
   }, [
+    endActionOpacity,
+    endActionTranslateY,
     endCardOpacity,
     endCardScale,
     gameEndData,
-    quitButtonOpacity,
-    quitButtonTranslateY,
-    replayButtonOpacity,
-    replayButtonTranslateY,
   ]);
 
   const confirmLeaveGame = () => {
@@ -392,14 +386,13 @@ export default function OnlineGameScreen({ navigation, route }) {
                   <Animated.View
                     style={{
                       width: "100%",
-                      opacity: replayButtonOpacity,
-                      transform: [{ translateY: replayButtonTranslateY }],
+                      opacity: endActionOpacity,
+                      transform: [{ translateY: endActionTranslateY }],
                     }}
                   >
                     <Pressable
-                      style={({ pressed }) => [styles.endBtn, pressed && { opacity: 0.75 }, isReplaying && { opacity: 0.6 }]}
-                      onPress={requestReplay}
-                      disabled={isReplaying}
+                      style={({ pressed }) => [styles.endBtn, pressed && { opacity: 0.75 }]}
+                      onPress={quitAfterGameEnd}
                       android_ripple={{ color: "rgba(168,85,247,0.3)" }}
                     >
                       <LinearGradient
@@ -407,26 +400,9 @@ export default function OnlineGameScreen({ navigation, route }) {
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                         style={styles.endBtnGradient}
                       >
-                        <Ionicons name="refresh" size={18} color="#fff" style={{ marginRight: 8 }} />
-                        <Text style={styles.endBtnText}>{isReplaying ? "Recherche d'une partie..." : "Rejouer"}</Text>
+                        <Ionicons name="exit-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+                        <Text style={styles.endBtnText}>Quitter</Text>
                       </LinearGradient>
-                    </Pressable>
-                  </Animated.View>
-
-                  <Animated.View
-                    style={{
-                      width: "100%",
-                      opacity: quitButtonOpacity,
-                      transform: [{ translateY: quitButtonTranslateY }],
-                    }}
-                  >
-                    <Pressable
-                      style={({ pressed }) => [styles.endBtnSecondary, pressed && { opacity: 0.75 }]}
-                      onPress={quitAfterGameEnd}
-                      android_ripple={{ color: "rgba(236,72,153,0.2)" }}
-                    >
-                      <Ionicons name="exit-outline" size={17} color={C.pink} style={{ marginRight: 8 }} />
-                      <Text style={styles.endBtnSecondaryText}>Quitter</Text>
                     </Pressable>
                   </Animated.View>
 
@@ -544,6 +520,7 @@ OnlineGameScreen.propTypes = {
       refreshToken: PropTypes.string,
       isAuthenticated: PropTypes.bool,
       clientSessionId: PropTypes.string,
+      previewGameEndOutcome: PropTypes.oneOf(["win", "lose", "draw"]),
     }),
   }),
 };
@@ -1039,24 +1016,6 @@ const styles = StyleSheet.create({
   endBtnText: {
     color: "#fff",
     fontSize: 15,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-  },
-  endBtnSecondary: {
-    width: "100%",
-    marginTop: 10,
-    minHeight: 50,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.pink,
-    backgroundColor: "rgba(236,72,153,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-  },
-  endBtnSecondaryText: {
-    color: C.pink,
-    fontSize: 14,
     fontWeight: "800",
     letterSpacing: 0.4,
   },
