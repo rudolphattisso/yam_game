@@ -171,6 +171,7 @@ export default function OnlineGameController({
   waitingStatusMessage = "Veuillez patienter, un adversaire va se connecter...",
   hideWaitingUi = false,
   displayGameFoundSplash = false,
+  showMatchupNotice = true,
   localPlayerName = "Joueur",
   localPlayerIsAuthenticated = false,
   localPlayerUserId = null,
@@ -356,17 +357,19 @@ export default function OnlineGameController({
         <View style={styles.boardWrapper}>
           {displayGameFoundSplash && <GameFoundView idOpponent={idOpponent} />}
 
-          <View style={styles.matchupNotice}>
-            <View style={styles.matchupPlayerTag}>
-              <Text style={styles.matchupPlayerName}>{playerName}</Text>
-              <Text style={styles.matchupPlayerScore}>Score: {playerScore}</Text>
+          {showMatchupNotice && (
+            <View style={styles.matchupNotice}>
+              <View style={styles.matchupPlayerTag}>
+                <Text style={styles.matchupPlayerName}>{playerName}</Text>
+                <Text style={styles.matchupPlayerScore}>Score: {playerScore}</Text>
+              </View>
+              <Text style={styles.matchupVs}>VS</Text>
+              <View style={[styles.matchupPlayerTag, styles.matchupOpponentTag]}>
+                <Text style={[styles.matchupPlayerName, styles.matchupOpponentName]}>{opponentName}</Text>
+                <Text style={[styles.matchupPlayerScore, styles.matchupOpponentScore]}>Score: {opponentScore}</Text>
+              </View>
             </View>
-            <Text style={styles.matchupVs}>VS</Text>
-            <View style={[styles.matchupPlayerTag, styles.matchupOpponentTag]}>
-              <Text style={[styles.matchupPlayerName, styles.matchupOpponentName]}>{opponentName}</Text>
-              <Text style={[styles.matchupPlayerScore, styles.matchupOpponentScore]}>Score: {opponentScore}</Text>
-            </View>
-          </View>
+          )}
 
           <Board playerName={playerName} opponentName={opponentName} />
         </View>
@@ -659,6 +662,7 @@ OnlineGameController.propTypes = {
   waitingStatusMessage: PropTypes.string,
   hideWaitingUi: PropTypes.bool,
   displayGameFoundSplash: PropTypes.bool,
+  showMatchupNotice: PropTypes.bool,
   localPlayerName: PropTypes.string,
   localPlayerIsAuthenticated: PropTypes.bool,
   localPlayerUserId: PropTypes.string,

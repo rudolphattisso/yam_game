@@ -19,6 +19,24 @@ export default function OnlineGameScreen({ navigation, route }) {
   const playerName = route?.params?.playerName || route?.params?.displayName || 'Joueur';
   const isAuthenticated = route?.params?.isAuthenticated === true;
   const userId = route?.params?.user?.id;
+  const isBotMode = route?.params?.gameMode === "bot";
+  const joinEvent = route?.params?.joinEvent || (isBotMode ? "queue.bot.join" : "queue.join");
+  const waitingStatusMessage = route?.params?.waitingStatusMessage
+    || (isBotMode ? "Demarrage de la partie contre la machine..." : "Veuillez patienter, un adversaire va se connecter...");
+  const hideWaitingUi = typeof route?.params?.hideWaitingUi === "boolean"
+    ? route?.params?.hideWaitingUi
+    : isBotMode;
+  const displayGameFoundSplash = typeof route?.params?.displayGameFoundSplash === "boolean"
+    ? route?.params?.displayGameFoundSplash
+    : false;
+  const showMatchupNotice = typeof route?.params?.showMatchupNotice === "boolean"
+    ? route?.params?.showMatchupNotice
+    : true;
+  const opponentScoreLabel = isBotMode ? "Bot" : "Adversaire";
+  const pageTitle = isBotMode ? "Defi Bot" : "Partie en ligne";
+  const pageSubtitle = isBotMode
+    ? "Affronte l'IA et optimise chaque lancer"
+    : "Reste concentre, la chance tourne vite";
   const clientSessionId = useRef(route?.params?.clientSessionId || `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`).current;
   const homeRouteParams = {
     userMode: route?.params?.userMode || (isAuthenticated ? 'connected' : 'guest'),
@@ -223,8 +241,8 @@ export default function OnlineGameScreen({ navigation, route }) {
             <View style={styles.headerLeft}>
               <Ionicons name="dice" size={26} color={C.gold} />
               <View style={{ marginLeft: 10 }}>
-                <Text style={styles.pageTitle}>Partie en ligne</Text>
-                <Text style={styles.pageSubtitle}>Reste concentré, la chance tourne vite</Text>
+                <Text style={styles.pageTitle}>{pageTitle}</Text>
+                <Text style={styles.pageSubtitle}>{pageSubtitle}</Text>
               </View>
             </View>
 
@@ -278,8 +296,13 @@ export default function OnlineGameScreen({ navigation, route }) {
           {/* ── Zone contrôleur ── */}
           <View style={styles.controllerWrapper}>
             <OnlineGameController
-              onOpponentLeft={handleOpponentLeft}
+              onOpponentLeft={isBotMode ? null : handleOpponentLeft}
               onGameEnd={handleGameEnd}
+              joinEvent={joinEvent}
+              waitingStatusMessage={waitingStatusMessage}
+              hideWaitingUi={hideWaitingUi}
+              displayGameFoundSplash={displayGameFoundSplash}
+              showMatchupNotice={showMatchupNotice}
               localPlayerName={playerName}
               localPlayerIsAuthenticated={isAuthenticated}
               localPlayerUserId={isAuthenticated ? userId : null}
@@ -306,10 +329,10 @@ export default function OnlineGameScreen({ navigation, route }) {
 
         const title   = isDraw ? "Match nul"  : isWinner ? "Victoire !"  : "Défaite";
         const subtitle = isDraw
-          ? "Les deux joueurs sont à égalité."
+          ? "Les deux joueurs sont a egalite."
           : isWinner
-          ? "Félicitations, tu as dominé cette partie !"
-          : "Ne baisse pas les bras, la revanche t'attend.";
+          ? (isBotMode ? "Belle perf, le bot est battu !" : "Felicitations, tu as domine cette partie !")
+          : (isBotMode ? "Le bot prend cette manche. Reviens plus fort." : "Ne baisse pas les bras, la revanche t'attend.");
 
         const reason =
           gameEndData?.reason === "five-aligned"   ? "5 pions alignés"          :
@@ -375,7 +398,7 @@ export default function OnlineGameScreen({ navigation, route }) {
                     </View>
                     <View style={styles.endScoreDivider} />
                     <View style={styles.endScoreBox}>
-                      <Text style={styles.endScoreLabel}>Adversaire</Text>
+                      <Text style={styles.endScoreLabel}>{opponentScoreLabel}</Text>
                       <Text style={[styles.endScoreValue, { color: isLoser ? C.pink : C.textPrimary }]}>
                         {opponentScore}
                       </Text>
@@ -520,6 +543,12 @@ OnlineGameScreen.propTypes = {
       refreshToken: PropTypes.string,
       isAuthenticated: PropTypes.bool,
       clientSessionId: PropTypes.string,
+      gameMode: PropTypes.oneOf(["online", "bot"]),
+      joinEvent: PropTypes.oneOf(["queue.join", "queue.bot.join"]),
+      waitingStatusMessage: PropTypes.string,
+      hideWaitingUi: PropTypes.bool,
+      displayGameFoundSplash: PropTypes.bool,
+      showMatchupNotice: PropTypes.bool,
       previewGameEndOutcome: PropTypes.oneOf(["win", "lose", "draw"]),
     }),
   }),
