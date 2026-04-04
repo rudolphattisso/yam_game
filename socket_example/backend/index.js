@@ -39,6 +39,19 @@ app.use('/api/games', gamesRouter);
 let games = [];
 let queue = [];
 const RESUME_WINDOW_MS = Number(process.env.GAME_RESUME_WINDOW_MS || 30_000);
+const BOT_REACTION_DELAY_MIN_MS = Number(process.env.BOT_REACTION_DELAY_MIN_MS || 1200);
+const BOT_REACTION_DELAY_MAX_MS = Number(process.env.BOT_REACTION_DELAY_MAX_MS || 1800);
+const BOT_MIN_VISIBLE_TIMER_SECONDS = Number(process.env.BOT_MIN_VISIBLE_TIMER_SECONDS || 2);
+
+const getBotReactionDelayMs = () => {
+  const minDelay = Math.max(0, BOT_REACTION_DELAY_MIN_MS);
+  const maxDelay = Math.max(minDelay, BOT_REACTION_DELAY_MAX_MS);
+  if (maxDelay === minDelay) {
+    return minDelay;
+  }
+
+  return Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+};
 
 // ------------------------------------
 // -------- EMITTER METHODS -----------
@@ -161,6 +174,7 @@ const passTurn = (game) => {
   game.gameState.deck = GameService.init.deck();
   game.gameState.choices = GameService.init.choices();
   game.gameState.grid = GameService.grid.resetcanBeCheckedCells(game.gameState.grid);
+  game.botTurnMeta = null;
 
   updateClientsViewTimers(game);
   updateClientsViewDecks(game);
@@ -298,38 +312,69 @@ const runBotTurn = (gameIndex) => {
   const game = games[gameIndex];
 
   if (!game || !game.isVsBot || game.gameState.currentTurn !== 'player:2') {
+    if (game) {
+      game.botTurnMeta = null;
+    }
     return;
   }
 
   const gameState = game.gameState;
 
-  if (gameState.deck.rollsCounter === 2 && !gameState.choices.isDefi) {
-    const hasNonBrelanOnFirstRoll = gameState.choices.availableChoices
-      .some((choice) => !choice.id.includes('brelan') && choice.id !== 'sec' && choice.id !== 'defi');
-
-    if (!hasNonBrelanOnFirstRoll) {
-      gameState.choices.isDefi = true;
-      updateClientsViewDecks(game);
-      updateClientsViewChoices(game);
-    }
+  if (!game.botTurnMeta) {
+    game.botTurnMeta = {
+      hasRolled: false,
+      canScoreAt: 0,
+      reactionDelayMs: 0,
+    };
   }
 
-  if (gameState.deck.rollsCounter <= gameState.deck.rollsMaximum) {
-    gameState.deck.dices = GameService.dices.roll(gameState.deck.dices);
-    gameState.deck.rollsCounter += 1;
+  if (!game.botTurnMeta.hasRolled) {
+    if (gameState.deck.rollsCounter === 2 && !gameState.choices.isDefi) {
+      const hasNonBrelanOnFirstRoll = gameState.choices.availableChoices
+        .some((choice) => !choice.id.includes('brelan') && choice.id !== 'sec' && choice.id !== 'defi');
 
-    if (gameState.deck.rollsCounter > gameState.deck.rollsMaximum) {
-      gameState.deck.dices = GameService.dices.lockEveryDice(gameState.deck.dices);
-      gameState.timer = 0;
+      if (!hasNonBrelanOnFirstRoll) {
+        gameState.choices.isDefi = true;
+        updateClientsViewDecks(game);
+        updateClientsViewChoices(game);
+      }
     }
 
-    const isDefi = gameState.choices.isDefi;
-    const isSec = gameState.deck.rollsCounter === 2;
-    gameState.choices.availableChoices = GameService.choices.findCombinations(gameState.deck.dices, isDefi, isSec);
+    if (gameState.deck.rollsCounter <= gameState.deck.rollsMaximum) {
+      gameState.deck.dices = GameService.dices.roll(gameState.deck.dices);
+      gameState.deck.rollsCounter += 1;
 
-    updateClientsViewDecks(game);
-    updateClientsViewChoices(game);
-    updateClientsViewTimers(game);
+      if (gameState.deck.rollsCounter > gameState.deck.rollsMaximum) {
+        gameState.deck.dices = GameService.dices.lockEveryDice(gameState.deck.dices);
+        gameState.timer = 0;
+      }
+
+      const isDefi = gameState.choices.isDefi;
+      const isSec = gameState.deck.rollsCounter === 2;
+      gameState.choices.availableChoices = GameService.choices.findCombinations(gameState.deck.dices, isDefi, isSec);
+
+      updateClientsViewDecks(game);
+      updateClientsViewChoices(game);
+      updateClientsViewTimers(game);
+    }
+
+    game.botTurnMeta.hasRolled = true;
+    game.botTurnMeta.reactionDelayMs = getBotReactionDelayMs();
+    game.botTurnMeta.canScoreAt = Date.now() + game.botTurnMeta.reactionDelayMs;
+
+    // Keep the bot timer readable long enough to visualize its choices.
+    const requiredSecondsForDelay = Math.ceil(game.botTurnMeta.reactionDelayMs / 1000) + 1;
+    const minVisibleSeconds = Math.max(BOT_MIN_VISIBLE_TIMER_SECONDS, requiredSecondsForDelay);
+    if (gameState.timer < minVisibleSeconds) {
+      gameState.timer = minVisibleSeconds;
+      updateClientsViewTimers(game);
+    }
+
+    return;
+  }
+
+  if (Date.now() < game.botTurnMeta.canScoreAt) {
+    return;
   }
 
   const bestMove = pickBestBotMove(gameState);
@@ -346,11 +391,21 @@ const runBotTurn = (gameIndex) => {
     );
 
     resolveGameAfterMove(gameIndex);
+    game.botTurnMeta = null;
+    return;
+  }
+
+  // No move found yet: if bot can still roll, allow another roll cycle.
+  if (gameState.deck.rollsCounter <= gameState.deck.rollsMaximum && gameState.timer > 0) {
+    game.botTurnMeta.hasRolled = false;
+    game.botTurnMeta.canScoreAt = 0;
+    game.botTurnMeta.reactionDelayMs = 0;
     return;
   }
 
   if (gameState.timer === 0 || gameState.deck.rollsCounter > gameState.deck.rollsMaximum) {
     passTurn(game);
+    game.botTurnMeta = null;
   }
 };
 
@@ -789,6 +844,7 @@ const createGame = (player1Socket, player2Socket, options = {}) => {
   newGame['disconnectedPlayerKey'] = null;
   newGame['resumeDeadline'] = null;
   newGame['resumeTimeoutId'] = null;
+  newGame['botTurnMeta'] = null;
 
   games.push(newGame);
 
@@ -816,14 +872,14 @@ const createGame = (player1Socket, player2Socket, options = {}) => {
       return;
     }
 
-    if (game.isVsBot && game.gameState.currentTurn === 'player:2') {
-      runBotTurn(gameIndex);
-      return;
-    }
-
     if (game.gameState.timer > 0) {
       game.gameState.timer--;
       updateClientsViewTimers(game);
+    }
+
+    if (game.isVsBot && game.gameState.currentTurn === 'player:2') {
+      runBotTurn(gameIndex);
+      return;
     }
 
     // Si le timer tombe à zéro

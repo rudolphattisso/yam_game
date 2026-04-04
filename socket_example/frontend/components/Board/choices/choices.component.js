@@ -32,9 +32,9 @@ const Choices = ({ onVisibilityChange }) => {
 
     useEffect(() => {
         if (onVisibilityChange) {
-            onVisibilityChange(displayChoices);
+            onVisibilityChange(true);
         }
-    }, [displayChoices, onVisibilityChange]);
+    }, [onVisibilityChange]);
 
     const handleSelectChoice = (choiceId, isSelectable) => {
 
@@ -45,10 +45,6 @@ const Choices = ({ onVisibilityChange }) => {
 
     };
 
-    if (!displayChoices) {
-        return null;
-    }
-
     return (
         <View style={styles.choicesContainer}>
             <Text style={styles.choicesTitle}>Combinaisons</Text>
@@ -58,6 +54,12 @@ const Choices = ({ onVisibilityChange }) => {
                 contentContainerStyle={styles.choicesScrollContent}
                 showsVerticalScrollIndicator={false}
             >
+                {!displayChoices && (
+                    <View style={styles.placeholderCard}>
+                        <Text style={styles.placeholderText}>Lance les des pour afficher les combinaisons</Text>
+                    </View>
+                )}
+
                 {displayChoices &&
                     availableChoices.map((choice) => {
                         const isChoiceDisabled = !canMakeChoice || !choice.isSelectable;
@@ -114,6 +116,24 @@ const styles = StyleSheet.create({
     },
     choicesScrollContent: {
         gap: 8,
+    },
+    placeholderCard: {
+        backgroundColor: "rgba(255, 247, 230, 0.12)",
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: "rgba(212, 175, 55, 0.3)",
+        minHeight: 46,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: 10,
+        paddingVertical: 10,
+    },
+    placeholderText: {
+        color: "#FFF7E6",
+        fontSize: 12,
+        fontWeight: "600",
+        textAlign: "center",
+        opacity: 0.85,
     },
     // LAYOUT: Boutons de combinaison
     choiceButton: {

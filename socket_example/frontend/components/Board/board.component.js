@@ -70,7 +70,7 @@ const Board = ({ gameViewState, playerName, opponentName }) => {
   const [boardSections, setBoardSections] = useState({
     displayOpponentDeck: false,
     displayPlayerDeck: false,
-    displayChoices: false,
+    displayChoices: true,
   });
   const isCompactLayout = width < 900 || height < 760;
   const isSmallMobileLayout = width < 520 || height < 720;
