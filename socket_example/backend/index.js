@@ -264,6 +264,98 @@ const pickBestBotMove = (gameState) => {
   return bestMove;
 };
 
+const pickBotDiceLocks = (dices) => {
+  const normalizedDices = Array.isArray(dices) ? dices : [];
+  const valueBuckets = new Map();
+
+  normalizedDices.forEach((dice) => {
+    const bucket = valueBuckets.get(dice.value) || [];
+    bucket.push(dice.id);
+    valueBuckets.set(dice.value, bucket);
+  });
+
+  const groupedValues = [...valueBuckets.entries()].sort((left, right) => {
+    if (right[1].length !== left[1].length) {
+      return right[1].length - left[1].length;
+    }
+
+    return Number(right[0]) - Number(left[0]);
+  });
+
+  if (groupedValues.length === 0) {
+    return new Set();
+  }
+
+  // Keep strongest repeated group first: Yam/Carre/Brelan/Paire.
+  if (groupedValues[0][1].length >= 2) {
+    const lockedIds = new Set(groupedValues[0][1]);
+
+    // If there is a second pair, keep it too to chase a full.
+    if (groupedValues[0][1].length === 2 && groupedValues[1]?.[1]?.length === 2) {
+      groupedValues[1][1].forEach((diceId) => lockedIds.add(diceId));
+    }
+
+    return lockedIds;
+  }
+
+  // Otherwise keep the best straight progression if there is one.
+  const sortedUniqueValues = [...new Set(normalizedDices.map((dice) => Number(dice.value)).filter(Boolean))]
+    .sort((left, right) => left - right);
+
+  let bestSequence = [];
+  let currentSequence = [];
+
+  sortedUniqueValues.forEach((value) => {
+    if (currentSequence.length === 0 || value === currentSequence[currentSequence.length - 1] + 1) {
+      currentSequence.push(value);
+    } else {
+      if (currentSequence.length > bestSequence.length) {
+        bestSequence = [...currentSequence];
+      }
+      currentSequence = [value];
+    }
+  });
+
+  if (currentSequence.length > bestSequence.length) {
+    bestSequence = [...currentSequence];
+  }
+
+  if (bestSequence.length >= 3) {
+    const lockedIds = new Set();
+    bestSequence.forEach((value) => {
+      const diceForValue = normalizedDices.find((dice) => Number(dice.value) === value && !lockedIds.has(dice.id));
+      if (diceForValue) {
+        lockedIds.add(diceForValue.id);
+      }
+    });
+    return lockedIds;
+  }
+
+  // Fallback: keep one strongest die to make bot intent visible.
+  return new Set([groupedValues[0][1][0]]);
+};
+
+const applyBotDiceLocks = (game) => {
+  const lockedIds = pickBotDiceLocks(game.gameState.deck.dices);
+
+  game.gameState.deck.dices = game.gameState.deck.dices.map((dice) => ({
+    ...dice,
+    locked: lockedIds.has(dice.id),
+  }));
+
+  // If everything gets locked while no scoring move exists yet, unlock the weakest die to allow a reroll.
+  const lockedDiceCount = game.gameState.deck.dices.filter((dice) => dice.locked).length;
+  if (lockedDiceCount === game.gameState.deck.dices.length && game.gameState.deck.rollsCounter <= game.gameState.deck.rollsMaximum) {
+    const weakestUnlockedIndex = [...game.gameState.deck.dices]
+      .map((dice, index) => ({ index, value: Number(dice.value) || 0 }))
+      .sort((left, right) => left.value - right.value)[0]?.index;
+
+    if (typeof weakestUnlockedIndex === 'number') {
+      game.gameState.deck.dices[weakestUnlockedIndex].locked = false;
+    }
+  }
+};
+
 const resolveGameAfterMove = (gameIndex) => {
   const game = games[gameIndex];
 
@@ -352,6 +444,10 @@ const runBotTurn = (gameIndex) => {
       const isDefi = gameState.choices.isDefi;
       const isSec = gameState.deck.rollsCounter === 2;
       gameState.choices.availableChoices = GameService.choices.findCombinations(gameState.deck.dices, isDefi, isSec);
+
+      if (gameState.deck.rollsCounter <= gameState.deck.rollsMaximum && gameState.choices.availableChoices.length === 0) {
+        applyBotDiceLocks(game);
+      }
 
       updateClientsViewDecks(game);
       updateClientsViewChoices(game);
