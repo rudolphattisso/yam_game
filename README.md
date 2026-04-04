@@ -20,7 +20,7 @@ Jeu de société multijoueur en ligne basé sur le Yam, développé avec **Expo 
 
 ```bash
 git clone <url-du-repo>
-cd socket_example
+cd yam_game
 ```
 
 ### 2. Configurer les variables d'environnement
