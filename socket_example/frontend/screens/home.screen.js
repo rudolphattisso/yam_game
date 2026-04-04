@@ -114,7 +114,15 @@ export default function HomeScreen({ navigation, route }) {
               isBotHovered && styles.buttonHovered,
               pressed && styles.buttonPressed,
             ]}
-            onPress={() => navigation.navigate("VsBotGameScreen")}
+            onPress={() => navigation.navigate("VsBotGameScreen", {
+              playerName: displayName || 'Joueur',
+              isAuthenticated: isConnected,
+              userMode: isConnected ? 'connected' : 'guest',
+              displayName,
+              user,
+              refreshToken,
+              clientSessionId: clientSessionIdRef.current,
+            })}
             onHoverIn={() => setIsBotHovered(true)}
             onHoverOut={() => setIsBotHovered(false)}
           >

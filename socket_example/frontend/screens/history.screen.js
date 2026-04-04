@@ -67,6 +67,7 @@ const getReasonLabel = (value) => {
 
 export default function HistoryScreen({ route }) {
   const [items, setItems] = useState([]);
+  const [modeFilter, setModeFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -124,12 +125,25 @@ export default function HistoryScreen({ route }) {
     return 'Aucune partie enregistree pour le moment.';
   }, [errorMessage]);
 
+  const filteredItems = useMemo(() => {
+    if (modeFilter === 'all') {
+      return items;
+    }
+
+    return items.filter((item) => item?.mode === modeFilter);
+  }, [items, modeFilter]);
+
   const renderItem = ({ item, index }) => (
     <View style={styles.itemCard}>
       <View style={styles.itemTopRow}>
         <View style={styles.itemHeadingLeft}>
           <Text style={styles.itemIndex}>Partie #{index + 1}</Text>
-          <Text style={styles.itemMode}>Type: {getModeLabel(item?.mode)}</Text>
+          <View style={[
+            styles.modeBadge,
+            item?.mode === 'bot' ? styles.modeBadgeBot : styles.modeBadgeOnline,
+          ]}>
+            <Text style={styles.modeBadgeText}>{getModeLabel(item?.mode)}</Text>
+          </View>
         </View>
         <Text style={styles.itemDate}>Le {formatDateTime(item?.ended_at)}</Text>
       </View>
@@ -182,8 +196,43 @@ export default function HistoryScreen({ route }) {
         <Text style={styles.title}>Historique des parties</Text>
         <Text style={styles.subtitle}>Consultez vos dernieres parties terminees</Text>
         {!isLoading && (
-          <Text style={styles.countText}>Parties jouees: {items.length}</Text>
+          <Text style={styles.countText}>Parties affichees: {filteredItems.length}</Text>
         )}
+
+        <View style={styles.filterRow}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.filterChip,
+              modeFilter === 'all' && styles.filterChipActive,
+              pressed && { opacity: 0.85 },
+            ]}
+            onPress={() => setModeFilter('all')}
+          >
+            <Text style={[styles.filterChipText, modeFilter === 'all' && styles.filterChipTextActive]}>Tous</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.filterChip,
+              modeFilter === 'online' && styles.filterChipActive,
+              pressed && { opacity: 0.85 },
+            ]}
+            onPress={() => setModeFilter('online')}
+          >
+            <Text style={[styles.filterChipText, modeFilter === 'online' && styles.filterChipTextActive]}>En ligne</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.filterChip,
+              modeFilter === 'bot' && styles.filterChipActive,
+              pressed && { opacity: 0.85 },
+            ]}
+            onPress={() => setModeFilter('bot')}
+          >
+            <Text style={[styles.filterChipText, modeFilter === 'bot' && styles.filterChipTextActive]}>Vs Bot</Text>
+          </Pressable>
+        </View>
       </View>
 
       {isLoading ? (
@@ -194,12 +243,12 @@ export default function HistoryScreen({ route }) {
       ) : (
         <View style={styles.listWrapper}>
           <FlatList
-            data={items}
+            data={filteredItems}
             style={styles.list}
             keyExtractor={(item, index) => String(item?.id || index)}
             contentContainerStyle={[
               styles.listContent,
-              items.length === 0 && styles.listContentEmpty,
+              filteredItems.length === 0 && styles.listContentEmpty,
             ]}
             renderItem={renderItem}
             ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
@@ -267,6 +316,32 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 10,
   },
+  filterRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  filterChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(167, 139, 250, 0.45)',
+    backgroundColor: 'rgba(30, 41, 59, 0.45)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  filterChipActive: {
+    borderColor: 'rgba(56, 189, 248, 0.85)',
+    backgroundColor: 'rgba(14, 165, 233, 0.2)',
+  },
+  filterChipText: {
+    color: '#C4B5FD',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  filterChipTextActive: {
+    color: '#E0F2FE',
+  },
   loadingWrapper: {
     flex: 1,
     alignItems: 'flex-start',
@@ -322,9 +397,23 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 8,
   },
-  itemMode: {
-    color: '#C4B5FD',
-    fontSize: 12,
+  modeBadge: {
+    borderRadius: 999,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+  },
+  modeBadgeOnline: {
+    backgroundColor: 'rgba(79, 70, 229, 0.2)',
+    borderColor: 'rgba(99, 102, 241, 0.7)',
+  },
+  modeBadgeBot: {
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    borderColor: 'rgba(251, 191, 36, 0.7)',
+  },
+  modeBadgeText: {
+    color: '#E2E8F0',
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
