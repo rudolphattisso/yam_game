@@ -20,10 +20,10 @@ Jeu de société multijoueur en ligne basé sur le Yam, développé avec **Expo 
 
 ```bash
 git clone <url-du-repo>
-cd socket_example
+cd yam_game
 ```
 
-### 2. Configurer les variables d'environnement
+### 2. Configurer les variables d'environnement et modifier le nom en .env
 
 ```bash
 # Variables de la base de données et du backend
@@ -33,7 +33,12 @@ cp .env.example .env
 cp frontend/.env.example frontend/.env
 ```
 
-> Ouvre les deux fichiers `.env` et remplace les valeurs `change_me` par tes propres secrets.
+> Ouvre le `.env`(racine) et remplace les valeurs `change_me` par tes propres secrets.
+> Pour generer un `JWT_SECRET` robuste:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
 
 ### 3. Installer les dépendances
 
@@ -52,7 +57,7 @@ cd frontend && npm install && cd ..
 ### 1. Démarrer la base de données
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 Cela démarre :
@@ -81,10 +86,7 @@ cd frontend
 npx expo start
 ```
 
-Puis choisir la cible :
-- **Web** : appuyer sur `w`
-- **Android** : appuyer sur `a` (émulateur ou appareil via Expo Go)
-- **iOS** : appuyer sur `i` (macOS uniquement)
+Le frontend est actuellement utilise en mode Web uniquement via Expo.
 
 ---
 
