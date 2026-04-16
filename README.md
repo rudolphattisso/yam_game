@@ -2,6 +2,26 @@
 
 Jeu de société multijoueur en ligne basé sur le Yam, développé avec **Expo / React Native** (frontend) et **Node.js / Socket.IO** (backend), avec une base de données **PostgreSQL**.
 
+## But du jeu
+
+Yam Master est une adaptation numérique et stratégique du jeu de dés Yam traditionnel. Les joueurs lancent des dés pour former des combinaisons et marquer des points, tout en plaçant des pions sur une grille pour contrôler des lignes, colonnes ou diagonales. Le but est d'atteindre des conditions de victoire en remplissant des figures ou en épuisant les pions de l'adversaire. Le jeu propose deux modes principaux :
+
+- **Multijoueur en ligne** : Affrontez d'autres joueurs en temps réel via Socket.IO.
+- **VS Bot** : Jouez contre une intelligence artificielle pour pratiquer ou jouer seul.
+
+Le jeu inclut des mécaniques avancées comme le "Défi" (annoncer une figure au deuxième lancer) et "Yam Prédator" (retirer un pion à l'adversaire), pour une expérience plus compétitive.
+
+## Fonctionnement de l'application
+
+L'application Yam Master fonctionne selon une architecture client-serveur :
+
+- **Frontend (Expo / React Native)** : Interface utilisateur mobile/web. Utilise Socket.IO pour la communication temps réel avec le serveur lors des parties multijoueurs. Gère l'affichage des dés, de la grille de jeu, des timers, et des écrans (login, menu, partie).
+- **Backend (Node.js / Express / Socket.IO)** : Serveur API REST pour l'authentification (JWT) et la gestion des utilisateurs/parties. Socket.IO gère les événements temps réel (lancers de dés, mises à jour de la grille, fin de partie). Les middlewares assurent la sécurité (rate-limiting, validation).
+- **Base de données (PostgreSQL)** : Stocke les utilisateurs, les parties en cours/terminées, et les scores. Les scripts SQL initiaux créent le schéma et les données de démo.
+- **Communication** : L'authentification utilise des tokens JWT. Les parties multijoueurs passent par WebSockets (Socket.IO) pour une latence minimale, tandis que les opérations CRUD (historique, etc.) utilisent l'API REST.
+
+L'application démarre avec l'écran de connexion, puis permet de créer/rejoindre une partie ou jouer contre un bot.
+
 ---
 
 ## Prérequis
@@ -20,8 +40,7 @@ Jeu de société multijoueur en ligne basé sur le Yam, développé avec **Expo 
 
 ```bash
 git clone <url-du-repo>
-cd yam_game/yam_game
-
+cd yam_game
 ```
 
 ### 2. Configurer les variables d'environnement et modifier le nom en .env
@@ -95,22 +114,29 @@ Le frontend est actuellement utilise en mode Web uniquement via Expo.
 
 ```
 .
+├── ARCHITECTURE.md
+├── docker-compose.yml
+├── env.example
+├── README.md
+├── user_demo_for_login.md
 ├── backend/          # Serveur Node.js + Socket.IO + API REST
-│   ├── index.js      # Point d'entrée
+│   ├── db/           # Connexion PostgreSQL
+│   ├── middleware/   # Middlewares Express
 │   ├── routes/       # Routes Express (auth, games)
 │   ├── services/     # Logique métier
-│   └── db/           # Connexion PostgreSQL
+│   └── validators/   # Schémas de validation
 ├── db/
-│   └── init/         # Scripts SQL (appliqués par Docker au démarrage)
+│   └── init/         # Scripts SQL
+├── doc/              # Documentation détaillée
+│   ├── agents/       # Rôles des agents de développement
+│   └── evaluation/   # Évaluation et fonctionnalités
 ├── frontend/         # Application Expo / React Native
-│   ├── App.js        # Point d'entrée
-│   ├── screens/      # Écrans de l'application
-│   ├── components/   # Composants réutilisables (board, dés, grille…)
+│   ├── components/   # Composants réutilisables
+│   ├── contexts/     # Contexte Socket.IO
 │   ├── controllers/  # Logique de jeu côté client
-│   └── contexts/     # Contexte Socket.IO
-├── .env.example      # Modèle de configuration racine
-├── docker-compose.yml
-└── README.md
+│   ├── screens/      # Écrans de l'application
+│   └── utils/        # Utilitaires
+└── .env.example      # Modèle de configuration racine
 ```
 
 ---
